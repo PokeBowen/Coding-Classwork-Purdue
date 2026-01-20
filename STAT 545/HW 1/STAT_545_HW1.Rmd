@@ -11,7 +11,7 @@ All code is also included in working .R files corresponding to each problem. Cha
 # Problem 1
 
 We simply want to add out final score to our file. Thankfully, the calculations and final data frame is already made. All we need to do is bind final letter grade with our score file and write it into a csv file. This is the edited lines of code in "grade_P1.R".
-```{r include = FALSE}
+```{r include=FALSE}
 #STAT 545
 #Example R code for grade calculation
 #Need to make sure "scores.csv" is present in the directory where R is invoked
@@ -71,7 +71,7 @@ finalscore
 
 # Problem 2
 
-``` {r include=FAlSE}
+``` {r include=FALSE}
 #STAT 545
 #Example R code for grade calculation
 #Need to make sure "scores.csv" is present in the directory where R is invoked
