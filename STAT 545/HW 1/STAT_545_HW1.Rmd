@@ -4,22 +4,197 @@ output:
   pdf_document: default
 ---
 
+# Introduction
+
+All code is also included in working .R files corresponding to each problem. Changes and new code are included in this pdf knit of my notebook for easy view.
+
 # Problem 1
 
+We simply want to add out final score to our file. Thankfully, the calculations and final data frame is already made. All we need to do is bind final letter grade with our score file and write it into a csv file. This is the edited lines of code in "grade_P1.R".
+```{r include = FALSE}
+#STAT 545
+#Example R code for grade calculation
+#Need to make sure "scores.csv" is present in the directory where R is invoked
+
+#Clear the workspace
+rm(list=ls())
+
+#reading a data frame from an Excel file
+score=read.csv("scores.csv", header =T)
+is.data.frame(score) 
+score
+
+#unsubmitted hw/quiz/exam/project counts as 0 score
+score[is.na(score)] = 0 
+score
+
+#Calculate component-wise scores according to the syllabus
+hw.component = (score$HW_maxscore_100/100)*30
+midterm.component = (score$Midterm_maxscore_50/50)*25
+final.component = (score$Final_maxscore_50/50)*25
+project.component=(score$Project_maxscore_100/100)*20
+
+#Calculate total score
+total = cbind(hw.component, midterm.component, final.component, project.component)
+totalscore = apply(total,1,sum)
+
+#Assign grades
+grades = rep(NA,nrow(score))
+
+for ( i in 1:nrow(score)){
+	if (totalscore[i]< 59) grades[i] = "F"
+	else if ((totalscore[i]>= 60) & (totalscore [i] <70)) grades[i] = "D"
+	else if ((totalscore[i]>= 70) & (totalscore [i] < 80)) grades[i] = "C"
+	else if ((totalscore[i]>= 80) & (totalscore [i] < 90)) grades[i] = "B"
+	else if ((totalscore[i]>= 90) & (totalscore [i] <100)) grades[i] = "A"
+	else grades[i] = "ERROR"
+}
+
+#bind the final score and letter grade together
+finalscore = cbind(score, grades)
+finalscore
+```
+```{r eval=FALSE}
+#bind the final score and letter grade together
+finalscore = cbind(score, grades)
+finalscore
+
+# We just add the write csv code line
+write.csv(finalscore, "final_grades.csv", row.names = FALSE)
+```
+And here is our score and finalscore:
 ```{r}
-plot(cars)
+score
+finalscore
 ```
 
-This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code.
 
-Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*.
+# Problem 2
 
-```{r}
-plot(cars)
+``` {r include=FAlSE}
+#STAT 545
+#Example R code for grade calculation
+#Need to make sure "scores.csv" is present in the directory where R is invoked
+
+#Clear the workspace
+rm(list=ls())
+
+#reading a data frame from an Excel file
+score=read.csv("scores_new.csv", header =T)
+is.data.frame(score) 
+
+#unsubmitted hw/quiz/exam/project counts as 0 score
+score[is.na(score)] = 0 
+
+#Calculate HW total
+score$HW_maxscore_100 = score$HW_1 + score$HW_2 + score$HW_3 + score$HW_4 + score$HW_5
+
+#Calculate component-wise scores according to each equal
+hw.component = (score$HW_maxscore_100/100)*25
+midterm.component = (score$Midterm_maxscore_50/50)*25
+final.component = (score$Final_maxscore_50/50)*25
+project.component=(score$Project_maxscore_100/100)*25
+
+#Calculate total score
+total = cbind(hw.component, midterm.component, final.component, project.component)
+totalscore = apply(total,1,sum)
+
+#Assign grades
+grades = rep(NA,nrow(score))
+
+for ( i in 1:nrow(score)){
+	if (totalscore[i]< 59) grades[i] = "F"
+	else if ((totalscore[i]>= 60) & (totalscore [i] <70)) grades[i] = "D"
+	else if ((totalscore[i]>= 70) & (totalscore [i] < 80)) grades[i] = "C"
+	else if ((totalscore[i]>= 80) & (totalscore [i] < 90)) grades[i] = "B"
+	else if ((totalscore[i]>= 90) & (totalscore [i] <100)) grades[i] = "A"
+	else grades[i] = "ERROR"
+}
+
+finalscore = cbind(score, grades)
+finalscore
 ```
 
-Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+First, we have to read in our new file "scores_new.csv". Now we add up all 5 homework and change the component-wise score calculations to make it all equal.
 
-When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+So here, all we did was:
+```{r eval=FALSE}
+#Calculate HW total
+score$HW_maxscore_100 = score$HW_1 + score$HW_2 + score$HW_3 + score$HW_4 + score$HW_5
 
-The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+#Calculate component-wise scores according to each equal
+hw.component = (score$HW_maxscore_100/100)*25
+```
+
+Check our work: 
+
+```{r}
+score
+finalscore
+```
+
+
+# Problem 3
+
+This is R file of Problem 3. We choose to ignore NA for median score, instead of using 0 like we have earlier. It makes more sense to use median rather than setting to 0 when talking about medians so that it is not skewed by 0 values.
+
+```{r}
+# Clear the workspace
+rm(list=ls())
+
+# Reading a data frame from an Excel file
+score=read.csv("scores_new.csv", header =T)
+
+# Simply use apply and median with na.rm=TRUE to find our homework medians
+# First select the columns we want to use
+hw_cols <- c("HW_1", "HW_2", "HW_3", "HW_4", "HW_5")
+hw_medians = apply(score[, hw_cols], 2, median, na.rm = TRUE)
+print(hw_medians)
+```
+
+Ok, next let us calculate Alice's median homework score, ignoring NA.
+
+```{r}
+# Let us only look at Alice's row
+alice_row = score[score$First.Name == "Alice", ]
+# Calculate median (using same hw columns as before)
+alice_median = median(as.numeric(alice_row[, hw_cols]), na.rm = TRUE)
+print(alice_median)
+```
+
+Alice's median homework score is 20.
+
+
+
+# Problem 4
+
+We do a very similar process to previously, but instead of doing it for each homework (columns), we apply to each student (row).
+
+```{r}
+# Clear the workspace
+rm(list=ls())
+
+# Reading a data frame from an Excel file
+score=read.csv("scores_new.csv", header =T)
+
+# Simply use apply and median with na.rm=TRUE to find our student medians
+# First select the columns we want to use
+hw_cols <- c("HW_1", "HW_2", "HW_3", "HW_4", "HW_5")
+student_medians = apply(score[, hw_cols], 1, median, na.rm = TRUE)
+
+# Add scores to data using column bind
+score_with_medians = cbind(score, Median_HW = student_medians)
+
+# Now we sort using order
+score_with_medians_final <- score_with_medians[order(score_with_medians$Median_HW, decreasing = TRUE), ]
+```
+
+Let us check our work:
+```{r}
+print(score_with_medians)
+print(score_with_medians_final)
+```
+
+Looks the same because they all have the same median. Code works even if this is not the case.
+
+

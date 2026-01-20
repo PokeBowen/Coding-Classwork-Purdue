@@ -36,6 +36,9 @@ for ( i in 1:nrow(score)){
 	else grades[i] = "ERROR"
 }
 
-
-finalscore = cbind(as.character(score[,1]), totalscore, grades)
+#as.character(score[,1])
+finalscore = cbind(score, grades)
 finalscore
+
+# We just add the write csv code line
+write.csv(finalscore, "final_grades.csv", row.names = FALSE)
