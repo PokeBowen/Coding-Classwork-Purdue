@@ -124,6 +124,9 @@ score$HW_maxscore_100 = score$HW_1 + score$HW_2 + score$HW_3 + score$HW_4 + scor
 
 #Calculate component-wise scores according to each equal
 hw.component = (score$HW_maxscore_100/100)*25
+midterm.component = (score$Midterm_maxscore_50/50)*25
+final.component = (score$Final_maxscore_50/50)*25
+project.component=(score$Project_maxscore_100/100)*25
 ```
 
 Check our work: 
