@@ -1,0 +1,312 @@
+---
+title: "STAT 526 HW 1"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+
+# STAT 526 HW 1
+
+## Problem 0
+
+Name
+
+Bowen Zheng
+
+## Problem 1
+
+A multiple regression, involving 88 cases and 6 predictors, resulted in an $R^2$ = 0.48. Based
+on this information, what is the F statistic, its degrees of freedom, and P-value?
+
+We have 6 predictors with n = 88. The degree of freedom is $df_1 = 6$. The degree of freedom error is $df_2 = 88 - (6+1) = 81$. 
+
+We can calculate our F-statistics with R squared. 
+
+$$ 
+F = \dfrac{R^2 / df_1}{(1-R^2)/df_2} = \dfrac{0.48/6)}{(1-0.48)/81} = 12.46
+$$
+
+Our F-statistic is 12.46 with 6 and 81 degrees of freedom. We can use a calculate and find that the corresponding P-value is approximately 0.
+
+## Problem 2
+
+In Slide 18 of Topic 1, an F test is described to compare a more flexible model with a reduced
+one (e.g., some parameters in the reduced model are set to 0). When a multiple regression has
+replications at certain sets of X, a lack of fit test can be performed using this same framework.
+The full model does not put any assumptions on the means for each set of X. The reduced model
+assumes the means are a linear function of X. Assuming that there are C sets of X in the data
+set and Set i has $n_i$ observations ($n_i$ > 1 for some sets), write out the lack-of-fit test in this
+framework by specifying the full and reduced models, their degrees of freedom, and the associated
+error degrees of freedom. This total number of observations is n = $\sum_{i=1}^C n_i$.
+
+
+### The full model:
+
+Each set of C has their own mean. We have C sets of X.
+
+Our equation is $ Y_{ij} = \mu_i + \epsilon_{ij}$ where $i \in 1,2,...,C$.
+
+This means we have C number of parameters and our degree of freedom is C and our degree freedom of error is $n-C$.
+
+### The reduced model:
+
+We now have a linear relation / model for the means: $Y_{ij} = \beta_0 + \beta_1 x_{ij1} + \cdots + \beta_k x_{ijk} + \epsilon_{ij}$.
+
+With $k$ features from the data, we have $k+1$ parameters used in our model. The degree of freedom is $k+1$ with a degree of freedom error of $n-k-1$.
+
+### When performing the test
+
+Using the two models we can compute things like SSE and SSM and ultimately, the difference in their degrees of freedom is $(n-k-1)-(n-C) = C-k-1$, which will be used when performing the lack of fit test. 
+
+
+## Problem 3
+
+The analysis of the Georgia data set in Topic 1 did not account for the fact that the response
+variable (proportion undercount) may have nonconstant variances. Perform a weighted regression
+fit of the final model on Slide 42 assuming the binomial setting for the proportion undercount and
+summarize the results. Also compare these results with those shown in Topic 1.
+
+We first grab the code from topic 1 so we can have access to the final model on slide 42.
+```{r, results='hide', message=FALSE, fig.show='hide'}
+library(faraway)
+data(gavote)
+
+### Lists the first 6 datalines of the data set
+head(gavote)
+
+### Summarizes the structure of the data set
+str(gavote)
+
+### Get summary statistics for each of the variables
+summary(gavote)
+
+### Because number of votes highly skewed, will look at percent undercount
+percunder <- (gavote$ballots - gavote$votes)/gavote$ballots
+
+### Generate histogram of percent undercount
+hist(percunder,xlab="Percent",las=1,main="Undercount")
+
+### Generate density with data shown at bottom
+plot(density(percunder),main="Percent Undercount",las=1)
+rug(percunder)
+
+### Define new percent variables for Gore and Bush votes
+pergore = gavote$gore/gavote$votes
+perbush = gavote$bush/gavote$votes
+
+### Generate a scatterplot matrix of numeric variables
+pairs(~percunder+gavote$perAA+pergore+perbush,pch=20)
+
+### Generate side-by-side boxplots 
+plot(percunder~rural,gavote,las=1,ylab="Percent")
+plot(percunder~equip,gavote,las=1)
+
+###Fitting a linear model using the lm function 
+model1 = lm(percunder ~ pergore + perAA, gavote)
+
+###Obtain summary information from model fit
+summary(model1)
+
+###Reduced summary information function proposed by Faraway
+sumary(model1)
+
+###Requesting ANOVA Table but be wary this is using Type I SS
+anova(model1)
+
+### This library contains function allowing Type III SS.  Be wary
+### of its use too.  Often need to change options using
+options(contrasts = c("contr.sum", "contr.poly"))
+
+library(car)
+Anova(model1, type=3)
+
+### Generate a 2x2 panel of diagnostic plots
+par(mar=c(2,2,2,2),mfrow=c(2,2))
+plot(model1,cex=0.65,cex.axis=0.7,cex.lab=0.5)
+
+### Creating centered variables.  Can help with multicolinearity when
+### considering polynomials and interactions
+cpergore = pergore - mean(pergore)
+cperAA = gavote$perAA - mean(gavote$perAA)
+
+### Fitting alternative model
+model2 = lm(percunder ~ cperAA+cpergore*rural+equip, gavote)
+sumary(model2)
+
+### General linear test comparing the two models
+anova(model1,model2)
+
+### Consider dropping single predictors.  Again performing general linear test
+drop1(model2,test="F")
+
+### New model dropping insignificant terms from previous function
+model3 = lm(percunder ~ cpergore+rural+equip, gavote)
+sumary(model3)
+anova(model2,model3)
+
+### Defining maximum model from which to select from 
+modelmax = lm(percunder ~ (equip+econ+rural+atlanta)^2 + (equip+econ+rural+atlanta)*(pergore+perAA), gavote)
+
+### Using AIC to reduce model
+modelbest = step(modelmax,trace=FALSE)
+summary(modelbest)
+
+drop1(modelbest,test="F")
+
+### Determing best model
+
+modelbetter2 = lm(percunder ~ equip+econ+rural+perAA+equip:econ+equip:perAA, gavote)
+drop1(modelbetter2,test="F")
+sumary(modelbetter2)
+
+### Getting tables of predictions
+pdf <- data.frame(econ=rep(levels(gavote$econ),5),equip=rep(levels(gavote$equip), rep(3,5)), perAA=0.233, rural="rural")
+ppr = predict(modelbetter2,new=pdf)
+xtabs(round(ppr,3)~econ+equip,pdf)
+
+pdf <- data.frame(econ=rep(levels(gavote$econ),5),equip=rep(levels(gavote$equip), rep(3,5)), perAA=0.233, rural="urban")
+ppu = predict(modelbetter2,new=pdf)
+xtabs(round(ppu,3)~econ+equip,pdf)
+```
+
+ OK now let us update the model with the weights being the count of the ballots. If we are assuming binomial with variance $Var(p) = \dfrac{p(1-p)}{n}$ and use the $w \propto \dfrac{1}{\sigma^2}$ then the weight of the ballots should be inversely proportional to the variance. Given that we do not know the true proportion of undercounting, the weight then is simply just n, the number of ballots. 
+```{r}
+model_wls <- update(modelbetter2, weights = ballots, data = gavote)
+summary(model_wls)
+
+par(mfrow=c(1,2))
+plot(modelbetter2, which = 3, main = "OLS (Heteroscedasticity)")
+plot(model_wls, which = 3, main = "WLS (Standardized)")
+
+### Getting tables of predictions
+pdf <- data.frame(econ=rep(levels(gavote$econ),5),equip=rep(levels(gavote$equip), rep(3,5)), perAA=0.233, rural="rural")
+ppr = predict(model_wls,new=pdf)
+xtabs(round(ppr,3)~econ+equip,pdf)
+
+pdf <- data.frame(econ=rep(levels(gavote$econ),5),equip=rep(levels(gavote$equip), rep(3,5)), perAA=0.233, rural="urban")
+ppu = predict(model_wls,new=pdf)
+xtabs(round(ppu,3)~econ+equip,pdf)
+```
+
+We can finally view our results. They are indeed quite similar to what we saw in topic one. The predicted percent under count is nearly identical (at most off by less than one percent) to our OLS model. However, it seems that the variables in our model have changed in significance slightly. In fact, we seem to have lost some variables like equip4:econ2.   
+
+
+## Problem 4
+
+On Slide 24 of Topic 1, you are provided a formula for the β1 coefficient given X2 is
+already in the model that is a function of the β1 estimate given it is the only predictor in the
+model. Derive this equation using the fact that β1 for the model Y |X1, X2 can be obtained by
+regressing the residuals of Y |X2 vs X1|X2 and the relationship between Pearson correlation and
+the slope in simple linear regression.
+
+We start by standardizing our variables. Let $Z_Y = \dfrac{Y-\mu_Y}{S_Y}$, $Z_1 = \dfrac{X_1-\mu_{X_1}}{S_{X_1}}$, and $Z_2 = \dfrac{X_2-\mu_{X_2}}{S_{X_2}}$. Then our residual of Y adjusted for $X_2$ is $e_{y|2} = Z_Y - r_{y2}Z_2$ and the residual of $X_1$ adjusted for $X_2$ is $e_{1|2} = Z_1 - r_{12}Z_2$.
+
+The multiple regression coefficient $\beta_1$ is found by regressing $e_{y|2}$ on $e_{1|2}$. Since the means of the residuals are 0, the formula is $\beta_1 = \dfrac{Cov(e_{y|2}, e_{1|2})}{Var(e_{1|2})}$.
+
+We first solve for the denominator. We find
+
+\begin{aligned}
+\text{Var}(e_{1|2}) &= E[(Z_1 - r_{12}Z_2)^2] \\
+&= E[Z_1^2 - 2r_{12}Z_1 Z_2 + r_{12}^2 Z_2^2] \\
+&= E[Z_1^2] - 2r_{12}E[Z_1 Z_2] + r_{12}^2 E[Z_2^2] \\
+&= 1 - 2r_{12}^2 + r_{12}^2 \\
+&= 1 - r_{12}^2
+\end{aligned}
+
+Note that since the variables are standardized, we know that $E[Z_i^2] = 1$ and that $E[Z_i Z_j] = r_{ij}$. Also that $r_{ii} = 1$.
+
+Next we solve for the numerator.
+
+\begin{aligned}
+\text{Cov}(e_{y|2}, e_{1|2}) &= E[(Z_Y - r_{y2}Z_2)(Z_1 - r_{12}Z_2)] \\
+&= E[Z_Y Z_1 - r_{12}Z_Y Z_2 - r_{y2}Z_2 Z_1 + r_{y2}r_{12}Z_2^2] \\
+&= E[Z_Y Z_1] - r_{12} E[Z_Y Z_2] - r_{y2}E[Z_2 Z_1] + r_{y2} r_{12} E{Z_2^2} \\  
+&= r_{y1} - r_{12}r_{y2} - r_{y2}r_{12} + r_{y2}r_{12} \\
+&= r_{y1} - r_{y2}r_{12}
+\end{aligned}
+
+Putting it all together and we convert back to unstandarized $X_1, X_2$ , we find
+
+\begin{aligned}
+\beta_1 &= \dfrac{r_{y1} - r_{y2} r_{12}}{1-r^2_{12}}
+\end{aligned}
+
+\begin{aligned}
+\hat{\beta_1} &= \beta_1 \cdot \dfrac{S_Y}{S_{X_1}} \\
+&= \beta_1 \cdot \sqrt{\dfrac{s_{Y}^2}{s_{X_1}^2}} \\
+&= \dfrac{r_{y1} - r_{y2} r_{12}}{1-r^2_{12}} \cdot \sqrt{\dfrac{s_{Y}^2}{s_{X_1}^2}} \\
+&= \dfrac{r_{y1}\dfrac{S_Y}{S_{X_1}} - \sqrt{\dfrac{s_{Y}^2}{s_{X_1}^2}} r_{y2} r_{12}}{1-r^2_{12}} \\
+&= \dfrac{\hat{\beta_1'} - \sqrt{\dfrac{s_{Y}^2}{s_{X_1}^2}} r_{y2} r_{12}}{1-r^2_{12}}
+\end{aligned}
+
+where the model coefficient for the slop given Y regressed on only $X_1$ is $\hat{\beta_1'} = r_{y1}\dfrac{S_Y}{S_{X_1}}$.
+
+Therefore, we have computed the relationship of the parameters between the model based only on $X_1$ and the ordinary regression model based on both $X_1$ and $X_2$.
+
+## Problem 5
+
+The dataset rock in the faraway library contains 48 rock samples obtained from twelve core
+samples from petroleum reservoirs sampled a four cross sections. Each rock was measured for
+permeability. Characteristics of the rock were its total perimeter of pores, total area of pores, and
+shape. Your goal is to determine the “best” linear model using these characteristics. Faraway
+(page 24) summarizes various steps to consider in this model selection process. Please describe
+your steps to derive the best model, what is your best model and any output and figures to support
+this model.
+
+### Begin with data exploration
+
+``` {r}
+#Clear the workspace
+rm(list=ls())
+library(faraway)
+library(MASS)
+
+data(rock)
+summary(rock)
+pairs(rock, main="Scatterplot Matrix of Rock Data")
+
+# Use Box-Cox to determine best transformation for perm
+lmod <- lm(perm ~ area + peri + shape, data = rock)
+bc <- boxcox(lmod, plotit = TRUE)
+# 3. Identify the exact lambda that maximizes the log-likelihood
+lambda <- bc$x[which.max(bc$y)]
+print(lambda)
+```
+
+
+It seems like we should probably choose lambda in the confidence interval. For interpretability, it is probably best to pick 0, which is close to being in the 95% confidence interval. We can do a quick initial analysis to check this. 
+
+```{r}
+# Compare Base Model vs. Log-Transformed Model
+full_model <- lm(perm ~ area + peri + shape, data = rock)
+log_model  <- lm(log(perm) ~ area + peri + shape, data = rock)
+
+par(mfrow=c(1,2))
+plot(full_model, which=1, main="Original Scale")
+plot(log_model, which=1, main="Log Scale")
+```
+
+Now perhaps a step-wise AIC model selection:
+
+```{r}
+best_mod <- step(log_model, direction = "both")
+summary(best_mod)
+```
+
+Our best model keeps area and perimeter. We can now check the diagnostics.
+
+```{r}
+par(mfrow=c(2,2))
+plot(best_mod)
+```
+
+Looking at the plots, we try to ascertain whether our assumptions for the model hold true. In this case we see no distinct pattern in the residuals vs fitted plot and the Normal QQ plot shows a diagonal line, showing normal distribution. Things look good.
+
+We can interpret our final model. Positive coefficient for area means that larger pores generally increase permeability and negative coefficient for perimeter means that for a fixed area, a larger perimeter implies lower permeability. 
+
+
+
+```{r}
+
+```

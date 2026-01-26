@@ -1,0 +1,713 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+\documentclass[
+]{article}
+\usepackage{xcolor}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\setcounter{secnumdepth}{-\maxdimen} % remove section numbering
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math} % this also loads fontspec
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+\usepackage{lmodern}
+\ifPDFTeX\else
+  % xetex/luatex font selection
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{color}
+\usepackage{fancyvrb}
+\newcommand{\VerbBar}{|}
+\newcommand{\VERB}{\Verb[commandchars=\\\{\}]}
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\}}
+% Add ',fontsize=\small' for more characters per line
+\usepackage{framed}
+\definecolor{shadecolor}{RGB}{248,248,248}
+\newenvironment{Shaded}{\begin{snugshade}}{\end{snugshade}}
+\newcommand{\AlertTok}[1]{\textcolor[rgb]{0.94,0.16,0.16}{#1}}
+\newcommand{\AnnotationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\AttributeTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{#1}}
+\newcommand{\BaseNTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\BuiltInTok}[1]{#1}
+\newcommand{\CharTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\CommentTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textit{#1}}}
+\newcommand{\CommentVarTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\ConstantTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{#1}}
+\newcommand{\ControlFlowTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\DataTypeTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{#1}}
+\newcommand{\DecValTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\DocumentationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\ErrorTok}[1]{\textcolor[rgb]{0.64,0.00,0.00}{\textbf{#1}}}
+\newcommand{\ExtensionTok}[1]{#1}
+\newcommand{\FloatTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\FunctionTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\ImportTok}[1]{#1}
+\newcommand{\InformationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\KeywordTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\NormalTok}[1]{#1}
+\newcommand{\OperatorTok}[1]{\textcolor[rgb]{0.81,0.36,0.00}{\textbf{#1}}}
+\newcommand{\OtherTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{#1}}
+\newcommand{\PreprocessorTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textit{#1}}}
+\newcommand{\RegionMarkerTok}[1]{#1}
+\newcommand{\SpecialCharTok}[1]{\textcolor[rgb]{0.81,0.36,0.00}{\textbf{#1}}}
+\newcommand{\SpecialStringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\StringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\VariableTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\VerbatimStringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\WarningTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\usepackage{graphicx}
+\makeatletter
+\newsavebox\pandoc@box
+\newcommand*\pandocbounded[1]{% scales image to fit in text height/width
+  \sbox\pandoc@box{#1}%
+  \Gscale@div\@tempa{\textheight}{\dimexpr\ht\pandoc@box+\dp\pandoc@box\relax}%
+  \Gscale@div\@tempb{\linewidth}{\wd\pandoc@box}%
+  \ifdim\@tempb\p@<\@tempa\p@\let\@tempa\@tempb\fi% select the smaller of both
+  \ifdim\@tempa\p@<\p@\scalebox{\@tempa}{\usebox\pandoc@box}%
+  \else\usebox{\pandoc@box}%
+  \fi%
+}
+% Set default figure placement to htbp
+\def\fps@figure{htbp}
+\makeatother
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\usepackage{bookmark}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\urlstyle{same}
+\hypersetup{
+  pdftitle={STAT 526 HW 1},
+  hidelinks,
+  pdfcreator={LaTeX via pandoc}}
+
+\title{STAT 526 HW 1}
+\author{}
+\date{\vspace{-2.5em}}
+
+\begin{document}
+\maketitle
+
+\section{STAT 526 HW 1}\label{stat-526-hw-1}
+
+\subsection{Problem 0}\label{problem-0}
+
+Name
+
+Bowen Zheng
+
+\subsection{Problem 1}\label{problem-1}
+
+A multiple regression, involving 88 cases and 6 predictors, resulted in
+an \(R^2\) = 0.48. Based on this information, what is the F statistic,
+its degrees of freedom, and P-value?
+
+We have 6 predictors with n = 88. The degree of freedom is \(df_1 = 6\).
+The degree of freedom error is \(df_2 = 88 - (6+1) = 81\).
+
+We can calculate our F-statistics with R squared.
+
+\[ 
+F = \dfrac{R^2 / df_1}{(1-R^2)/df_2} = \dfrac{0.48/6)}{(1-0.48)/81} = 12.46
+\]
+
+Our F-statistic is 12.46 with 6 and 81 degrees of freedom. We can use a
+calculate and find that the corresponding P-value is approximately 0.
+
+\subsection{Problem 2}\label{problem-2}
+
+In Slide 18 of Topic 1, an F test is described to compare a more
+flexible model with a reduced one (e.g., some parameters in the reduced
+model are set to 0). When a multiple regression has replications at
+certain sets of X, a lack of fit test can be performed using this same
+framework. The full model does not put any assumptions on the means for
+each set of X. The reduced model assumes the means are a linear function
+of X. Assuming that there are C sets of X in the data set and Set i has
+\(n_i\) observations (\(n_i\) \textgreater{} 1 for some sets), write out
+the lack-of-fit test in this framework by specifying the full and
+reduced models, their degrees of freedom, and the associated error
+degrees of freedom. This total number of observations is n =
+\(\sum_{i=1}^C n_i\).
+
+\subsubsection{The full model:}\label{the-full-model}
+
+Each set of C has their own mean. We have C sets of X.
+
+Our equation is \$ Y\_\{ij\} = \mu\emph{i + \epsilon}\{ij\}\$ where
+\(i \in 1,2,...,C\).
+
+This means we have C number of parameters and our degree of freedom is C
+and our degree freedom of error is \(n-C\).
+
+\subsubsection{The reduced model:}\label{the-reduced-model}
+
+We now have a linear relation / model for the means:
+\(Y_{ij} = \beta_0 + \beta_1 x_{ij1} + \cdots + \beta_k x_{ijk} + \epsilon_{ij}\).
+
+With \(k\) features from the data, we have \(k+1\) parameters used in
+our model. The degree of freedom is \(k+1\) with a degree of freedom
+error of \(n-k-1\).
+
+\subsubsection{When performing the test}\label{when-performing-the-test}
+
+Using the two models we can compute things like SSE and SSM and
+ultimately, the difference in their degrees of freedom is
+\((n-k-1)-(n-C) = C-k-1\), which will be used when performing the lack
+of fit test.
+
+\subsection{Problem 3}\label{problem-3}
+
+The analysis of the Georgia data set in Topic 1 did not account for the
+fact that the response variable (proportion undercount) may have
+nonconstant variances. Perform a weighted regression fit of the final
+model on Slide 42 assuming the binomial setting for the proportion
+undercount and summarize the results. Also compare these results with
+those shown in Topic 1.
+
+We first grab the code from topic 1 so we can have access to the final
+model on slide 42.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{library}\NormalTok{(faraway)}
+\FunctionTok{data}\NormalTok{(gavote)}
+
+\DocumentationTok{\#\#\# Lists the first 6 datalines of the data set}
+\FunctionTok{head}\NormalTok{(gavote)}
+
+\DocumentationTok{\#\#\# Summarizes the structure of the data set}
+\FunctionTok{str}\NormalTok{(gavote)}
+
+\DocumentationTok{\#\#\# Get summary statistics for each of the variables}
+\FunctionTok{summary}\NormalTok{(gavote)}
+
+\DocumentationTok{\#\#\# Because number of votes highly skewed, will look at percent undercount}
+\NormalTok{percunder }\OtherTok{\textless{}{-}}\NormalTok{ (gavote}\SpecialCharTok{$}\NormalTok{ballots }\SpecialCharTok{{-}}\NormalTok{ gavote}\SpecialCharTok{$}\NormalTok{votes)}\SpecialCharTok{/}\NormalTok{gavote}\SpecialCharTok{$}\NormalTok{ballots}
+
+\DocumentationTok{\#\#\# Generate histogram of percent undercount}
+\FunctionTok{hist}\NormalTok{(percunder,}\AttributeTok{xlab=}\StringTok{"Percent"}\NormalTok{,}\AttributeTok{las=}\DecValTok{1}\NormalTok{,}\AttributeTok{main=}\StringTok{"Undercount"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\DocumentationTok{\#\#\# Generate density with data shown at bottom}
+\FunctionTok{plot}\NormalTok{(}\FunctionTok{density}\NormalTok{(percunder),}\AttributeTok{main=}\StringTok{"Percent Undercount"}\NormalTok{,}\AttributeTok{las=}\DecValTok{1}\NormalTok{)}
+\FunctionTok{rug}\NormalTok{(percunder)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\DocumentationTok{\#\#\# Define new percent variables for Gore and Bush votes}
+\NormalTok{pergore }\OtherTok{=}\NormalTok{ gavote}\SpecialCharTok{$}\NormalTok{gore}\SpecialCharTok{/}\NormalTok{gavote}\SpecialCharTok{$}\NormalTok{votes}
+\NormalTok{perbush }\OtherTok{=}\NormalTok{ gavote}\SpecialCharTok{$}\NormalTok{bush}\SpecialCharTok{/}\NormalTok{gavote}\SpecialCharTok{$}\NormalTok{votes}
+
+\DocumentationTok{\#\#\# Generate a scatterplot matrix of numeric variables}
+\FunctionTok{pairs}\NormalTok{(}\SpecialCharTok{\textasciitilde{}}\NormalTok{percunder}\SpecialCharTok{+}\NormalTok{gavote}\SpecialCharTok{$}\NormalTok{perAA}\SpecialCharTok{+}\NormalTok{pergore}\SpecialCharTok{+}\NormalTok{perbush,}\AttributeTok{pch=}\DecValTok{20}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\DocumentationTok{\#\#\# Generate side{-}by{-}side boxplots }
+\FunctionTok{plot}\NormalTok{(percunder}\SpecialCharTok{\textasciitilde{}}\NormalTok{rural,gavote,}\AttributeTok{las=}\DecValTok{1}\NormalTok{,}\AttributeTok{ylab=}\StringTok{"Percent"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{plot}\NormalTok{(percunder}\SpecialCharTok{\textasciitilde{}}\NormalTok{equip,gavote,}\AttributeTok{las=}\DecValTok{1}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\DocumentationTok{\#\#\#Fitting a linear model using the lm function }
+\NormalTok{model1 }\OtherTok{=} \FunctionTok{lm}\NormalTok{(percunder }\SpecialCharTok{\textasciitilde{}}\NormalTok{ pergore }\SpecialCharTok{+}\NormalTok{ perAA, gavote)}
+
+\DocumentationTok{\#\#\#Obtain summary information from model fit}
+\FunctionTok{summary}\NormalTok{(model1)}
+
+\DocumentationTok{\#\#\#Reduced summary information function proposed by Faraway}
+\FunctionTok{sumary}\NormalTok{(model1)}
+
+\DocumentationTok{\#\#\#Requesting ANOVA Table but be wary this is using Type I SS}
+\FunctionTok{anova}\NormalTok{(model1)}
+
+\DocumentationTok{\#\#\# This library contains function allowing Type III SS.  Be wary}
+\DocumentationTok{\#\#\# of its use too.  Often need to change options using}
+\FunctionTok{options}\NormalTok{(}\AttributeTok{contrasts =} \FunctionTok{c}\NormalTok{(}\StringTok{"contr.sum"}\NormalTok{, }\StringTok{"contr.poly"}\NormalTok{))}
+
+\FunctionTok{library}\NormalTok{(car)}
+\FunctionTok{Anova}\NormalTok{(model1, }\AttributeTok{type=}\DecValTok{3}\NormalTok{)}
+
+\DocumentationTok{\#\#\# Generate a 2x2 panel of diagnostic plots}
+\FunctionTok{par}\NormalTok{(}\AttributeTok{mar=}\FunctionTok{c}\NormalTok{(}\DecValTok{2}\NormalTok{,}\DecValTok{2}\NormalTok{,}\DecValTok{2}\NormalTok{,}\DecValTok{2}\NormalTok{),}\AttributeTok{mfrow=}\FunctionTok{c}\NormalTok{(}\DecValTok{2}\NormalTok{,}\DecValTok{2}\NormalTok{))}
+\FunctionTok{plot}\NormalTok{(model1,}\AttributeTok{cex=}\FloatTok{0.65}\NormalTok{,}\AttributeTok{cex.axis=}\FloatTok{0.7}\NormalTok{,}\AttributeTok{cex.lab=}\FloatTok{0.5}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\DocumentationTok{\#\#\# Creating centered variables.  Can help with multicolinearity when}
+\DocumentationTok{\#\#\# considering polynomials and interactions}
+\NormalTok{cpergore }\OtherTok{=}\NormalTok{ pergore }\SpecialCharTok{{-}} \FunctionTok{mean}\NormalTok{(pergore)}
+\NormalTok{cperAA }\OtherTok{=}\NormalTok{ gavote}\SpecialCharTok{$}\NormalTok{perAA }\SpecialCharTok{{-}} \FunctionTok{mean}\NormalTok{(gavote}\SpecialCharTok{$}\NormalTok{perAA)}
+
+\DocumentationTok{\#\#\# Fitting alternative model}
+\NormalTok{model2 }\OtherTok{=} \FunctionTok{lm}\NormalTok{(percunder }\SpecialCharTok{\textasciitilde{}}\NormalTok{ cperAA}\SpecialCharTok{+}\NormalTok{cpergore}\SpecialCharTok{*}\NormalTok{rural}\SpecialCharTok{+}\NormalTok{equip, gavote)}
+\FunctionTok{sumary}\NormalTok{(model2)}
+
+\DocumentationTok{\#\#\# General linear test comparing the two models}
+\FunctionTok{anova}\NormalTok{(model1,model2)}
+
+\DocumentationTok{\#\#\# Consider dropping single predictors.  Again performing general linear test}
+\FunctionTok{drop1}\NormalTok{(model2,}\AttributeTok{test=}\StringTok{"F"}\NormalTok{)}
+
+\DocumentationTok{\#\#\# New model dropping insignificant terms from previous function}
+\NormalTok{model3 }\OtherTok{=} \FunctionTok{lm}\NormalTok{(percunder }\SpecialCharTok{\textasciitilde{}}\NormalTok{ cpergore}\SpecialCharTok{+}\NormalTok{rural}\SpecialCharTok{+}\NormalTok{equip, gavote)}
+\FunctionTok{sumary}\NormalTok{(model3)}
+\FunctionTok{anova}\NormalTok{(model2,model3)}
+
+\DocumentationTok{\#\#\# Defining maximum model from which to select from }
+\NormalTok{modelmax }\OtherTok{=} \FunctionTok{lm}\NormalTok{(percunder }\SpecialCharTok{\textasciitilde{}}\NormalTok{ (equip}\SpecialCharTok{+}\NormalTok{econ}\SpecialCharTok{+}\NormalTok{rural}\SpecialCharTok{+}\NormalTok{atlanta)}\SpecialCharTok{\^{}}\DecValTok{2} \SpecialCharTok{+}\NormalTok{ (equip}\SpecialCharTok{+}\NormalTok{econ}\SpecialCharTok{+}\NormalTok{rural}\SpecialCharTok{+}\NormalTok{atlanta)}\SpecialCharTok{*}\NormalTok{(pergore}\SpecialCharTok{+}\NormalTok{perAA), gavote)}
+
+\DocumentationTok{\#\#\# Using AIC to reduce model}
+\NormalTok{modelbest }\OtherTok{=} \FunctionTok{step}\NormalTok{(modelmax,}\AttributeTok{trace=}\ConstantTok{FALSE}\NormalTok{)}
+\FunctionTok{summary}\NormalTok{(modelbest)}
+
+\FunctionTok{drop1}\NormalTok{(modelbest,}\AttributeTok{test=}\StringTok{"F"}\NormalTok{)}
+
+\DocumentationTok{\#\#\# Determing best model}
+
+\NormalTok{modelbetter2 }\OtherTok{=} \FunctionTok{lm}\NormalTok{(percunder }\SpecialCharTok{\textasciitilde{}}\NormalTok{ equip}\SpecialCharTok{+}\NormalTok{econ}\SpecialCharTok{+}\NormalTok{rural}\SpecialCharTok{+}\NormalTok{perAA}\SpecialCharTok{+}\NormalTok{equip}\SpecialCharTok{:}\NormalTok{econ}\SpecialCharTok{+}\NormalTok{equip}\SpecialCharTok{:}\NormalTok{perAA, gavote)}
+\FunctionTok{drop1}\NormalTok{(modelbetter2,}\AttributeTok{test=}\StringTok{"F"}\NormalTok{)}
+\FunctionTok{sumary}\NormalTok{(modelbetter2)}
+
+\DocumentationTok{\#\#\# Getting tables of predictions}
+\NormalTok{pdf }\OtherTok{\textless{}{-}} \FunctionTok{data.frame}\NormalTok{(}\AttributeTok{econ=}\FunctionTok{rep}\NormalTok{(}\FunctionTok{levels}\NormalTok{(gavote}\SpecialCharTok{$}\NormalTok{econ),}\DecValTok{5}\NormalTok{),}\AttributeTok{equip=}\FunctionTok{rep}\NormalTok{(}\FunctionTok{levels}\NormalTok{(gavote}\SpecialCharTok{$}\NormalTok{equip), }\FunctionTok{rep}\NormalTok{(}\DecValTok{3}\NormalTok{,}\DecValTok{5}\NormalTok{)), }\AttributeTok{perAA=}\FloatTok{0.233}\NormalTok{, }\AttributeTok{rural=}\StringTok{"rural"}\NormalTok{)}
+\NormalTok{ppr }\OtherTok{=} \FunctionTok{predict}\NormalTok{(modelbetter2,}\AttributeTok{new=}\NormalTok{pdf)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Warning in predict.lm(modelbetter2, new = pdf): prediction from rank-deficient
+## fit; attr(*, "non-estim") has doubtful cases
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{xtabs}\NormalTok{(}\FunctionTok{round}\NormalTok{(ppr,}\DecValTok{3}\NormalTok{)}\SpecialCharTok{\textasciitilde{}}\NormalTok{econ}\SpecialCharTok{+}\NormalTok{equip,pdf)}
+
+\NormalTok{pdf }\OtherTok{\textless{}{-}} \FunctionTok{data.frame}\NormalTok{(}\AttributeTok{econ=}\FunctionTok{rep}\NormalTok{(}\FunctionTok{levels}\NormalTok{(gavote}\SpecialCharTok{$}\NormalTok{econ),}\DecValTok{5}\NormalTok{),}\AttributeTok{equip=}\FunctionTok{rep}\NormalTok{(}\FunctionTok{levels}\NormalTok{(gavote}\SpecialCharTok{$}\NormalTok{equip), }\FunctionTok{rep}\NormalTok{(}\DecValTok{3}\NormalTok{,}\DecValTok{5}\NormalTok{)), }\AttributeTok{perAA=}\FloatTok{0.233}\NormalTok{, }\AttributeTok{rural=}\StringTok{"urban"}\NormalTok{)}
+\NormalTok{ppu }\OtherTok{=} \FunctionTok{predict}\NormalTok{(modelbetter2,}\AttributeTok{new=}\NormalTok{pdf)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Warning in predict.lm(modelbetter2, new = pdf): prediction from rank-deficient
+## fit; attr(*, "non-estim") has doubtful cases
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{xtabs}\NormalTok{(}\FunctionTok{round}\NormalTok{(ppu,}\DecValTok{3}\NormalTok{)}\SpecialCharTok{\textasciitilde{}}\NormalTok{econ}\SpecialCharTok{+}\NormalTok{equip,pdf)}
+\end{Highlighting}
+\end{Shaded}
+
+OK now let us update the model with the weights being the count of the
+ballots. If we are assuming binomial with variance
+\(Var(p) = \dfrac{p(1-p)}{n}\) and use the
+\(w \propto \dfrac{1}{\sigma^2}\) then the weight of the ballots should
+be inversely proportional to the variance. Given that we do not know the
+true proportion of undercounting, the weight then is simply just n, the
+number of ballots.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{model\_wls }\OtherTok{\textless{}{-}} \FunctionTok{update}\NormalTok{(modelbetter2, }\AttributeTok{weights =}\NormalTok{ ballots, }\AttributeTok{data =}\NormalTok{ gavote)}
+\FunctionTok{summary}\NormalTok{(model\_wls)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## 
+## Call:
+## lm(formula = percunder ~ equip + econ + rural + perAA + equip:econ + 
+##     equip:perAA, data = gavote, weights = ballots)
+## 
+## Weighted Residuals:
+##     Min      1Q  Median      3Q     Max 
+## -3.8195 -0.8363 -0.0707  0.8911  7.3157 
+## 
+## Coefficients: (2 not defined because of singularities)
+##               Estimate Std. Error t value Pr(>|t|)    
+## (Intercept)   0.035228   0.014556   2.420  0.01680 *  
+## equip1        0.006031   0.015292   0.394  0.69389    
+## equip2       -0.005891   0.015045  -0.392  0.69597    
+## equip3        0.020433   0.015975   1.279  0.20301    
+## equip4       -0.056013   0.057479  -0.974  0.33149    
+## econ1         0.002216   0.002349   0.943  0.34705    
+## econ2         0.020012   0.003753   5.332 3.80e-07 ***
+## rural1        0.004483   0.001780   2.519  0.01290 *  
+## perAA        -0.004733   0.040301  -0.117  0.90668    
+## equip1:econ1 -0.002237   0.004207  -0.532  0.59568    
+## equip2:econ1 -0.001931   0.003324  -0.581  0.56215    
+## equip3:econ1 -0.009352   0.003480  -2.687  0.00808 ** 
+## equip4:econ1        NA         NA      NA       NA    
+## equip1:econ2 -0.004732   0.005244  -0.902  0.36838    
+## equip2:econ2 -0.011625   0.004983  -2.333  0.02108 *  
+## equip3:econ2  0.024526   0.005924   4.140 5.97e-05 ***
+## equip4:econ2        NA         NA      NA       NA    
+## equip1:perAA -0.038067   0.043786  -0.869  0.38612    
+## equip2:perAA  0.055830   0.043329   1.289  0.19969    
+## equip3:perAA -0.041768   0.045311  -0.922  0.35822    
+## equip4:perAA  0.091829   0.156455   0.587  0.55819    
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 1.765 on 140 degrees of freedom
+## Multiple R-squared:  0.6388, Adjusted R-squared:  0.5924 
+## F-statistic: 13.76 on 18 and 140 DF,  p-value: < 2.2e-16
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{par}\NormalTok{(}\AttributeTok{mfrow=}\FunctionTok{c}\NormalTok{(}\DecValTok{1}\NormalTok{,}\DecValTok{2}\NormalTok{))}
+\FunctionTok{plot}\NormalTok{(modelbetter2, }\AttributeTok{which =} \DecValTok{3}\NormalTok{, }\AttributeTok{main =} \StringTok{"OLS (Heteroscedasticity)"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Warning: not plotting observations with leverage one:
+##   103, 131
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{plot}\NormalTok{(model\_wls, }\AttributeTok{which =} \DecValTok{3}\NormalTok{, }\AttributeTok{main =} \StringTok{"WLS (Standardized)"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Warning: not plotting observations with leverage one:
+##   103, 131
+\end{verbatim}
+
+\pandocbounded{\includegraphics[keepaspectratio]{STAT526_HW1_files/figure-latex/unnamed-chunk-2-1.pdf}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\DocumentationTok{\#\#\# Getting tables of predictions}
+\NormalTok{pdf }\OtherTok{\textless{}{-}} \FunctionTok{data.frame}\NormalTok{(}\AttributeTok{econ=}\FunctionTok{rep}\NormalTok{(}\FunctionTok{levels}\NormalTok{(gavote}\SpecialCharTok{$}\NormalTok{econ),}\DecValTok{5}\NormalTok{),}\AttributeTok{equip=}\FunctionTok{rep}\NormalTok{(}\FunctionTok{levels}\NormalTok{(gavote}\SpecialCharTok{$}\NormalTok{equip), }\FunctionTok{rep}\NormalTok{(}\DecValTok{3}\NormalTok{,}\DecValTok{5}\NormalTok{)), }\AttributeTok{perAA=}\FloatTok{0.233}\NormalTok{, }\AttributeTok{rural=}\StringTok{"rural"}\NormalTok{)}
+\NormalTok{ppr }\OtherTok{=} \FunctionTok{predict}\NormalTok{(model\_wls,}\AttributeTok{new=}\NormalTok{pdf)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Warning in predict.lm(model_wls, new = pdf): prediction from rank-deficient
+## fit; attr(*, "non-estim") has doubtful cases
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{xtabs}\NormalTok{(}\FunctionTok{round}\NormalTok{(ppr,}\DecValTok{3}\NormalTok{)}\SpecialCharTok{\textasciitilde{}}\NormalTok{econ}\SpecialCharTok{+}\NormalTok{equip,pdf)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+##         equip
+## econ      LEVER  OS-CC  OS-PC  PAPER  PUNCH
+##   middle  0.036  0.046  0.042  0.006  0.074
+##   poor    0.051  0.054  0.094  0.024  0.070
+##   rich    0.021  0.037  0.012 -0.018  0.031
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{pdf }\OtherTok{\textless{}{-}} \FunctionTok{data.frame}\NormalTok{(}\AttributeTok{econ=}\FunctionTok{rep}\NormalTok{(}\FunctionTok{levels}\NormalTok{(gavote}\SpecialCharTok{$}\NormalTok{econ),}\DecValTok{5}\NormalTok{),}\AttributeTok{equip=}\FunctionTok{rep}\NormalTok{(}\FunctionTok{levels}\NormalTok{(gavote}\SpecialCharTok{$}\NormalTok{equip), }\FunctionTok{rep}\NormalTok{(}\DecValTok{3}\NormalTok{,}\DecValTok{5}\NormalTok{)), }\AttributeTok{perAA=}\FloatTok{0.233}\NormalTok{, }\AttributeTok{rural=}\StringTok{"urban"}\NormalTok{)}
+\NormalTok{ppu }\OtherTok{=} \FunctionTok{predict}\NormalTok{(model\_wls,}\AttributeTok{new=}\NormalTok{pdf)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Warning in predict.lm(model_wls, new = pdf): prediction from rank-deficient
+## fit; attr(*, "non-estim") has doubtful cases
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{xtabs}\NormalTok{(}\FunctionTok{round}\NormalTok{(ppu,}\DecValTok{3}\NormalTok{)}\SpecialCharTok{\textasciitilde{}}\NormalTok{econ}\SpecialCharTok{+}\NormalTok{equip,pdf)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+##         equip
+## econ      LEVER  OS-CC  OS-PC  PAPER  PUNCH
+##   middle  0.027  0.037  0.033 -0.003  0.065
+##   poor    0.042  0.045  0.085  0.015  0.061
+##   rich    0.012  0.028  0.003 -0.027  0.022
+\end{verbatim}
+
+We can finally view our results. They are indeed quite similar to what
+we saw in topic one. The predicted percent under count is nearly
+identical (at most off by less than one percent) to our OLS model.
+However, it seems that the variables in our model have changed in
+significance slightly. In fact, we seem to have lost some variables like
+equip4:econ2.
+
+\subsection{Problem 4}\label{problem-4}
+
+On Slide 24 of Topic 1, you are provided a formula for the β1
+coefficient given X2 is already in the model that is a function of the
+β1 estimate given it is the only predictor in the model. Derive this
+equation using the fact that β1 for the model Y \textbar X1, X2 can be
+obtained by regressing the residuals of Y \textbar X2 vs X1\textbar X2
+and the relationship between Pearson correlation and the slope in simple
+linear regression.
+
+We start by standardizing our variables. Let
+\(Z_Y = \dfrac{Y-\mu_Y}{S_Y}\),
+\(Z_1 = \dfrac{X_1-\mu_{X_1}}{S_{X_1}}\), and
+\(Z_2 = \dfrac{X_2-\mu_{X_2}}{S_{X_2}}\). Then our residual of Y
+adjusted for \(X_2\) is \(e_{y|2} = Z_Y - r_{y2}Z_2\) and the residual
+of \(X_1\) adjusted for \(X_2\) is \(e_{1|2} = Z_1 - r_{12}Z_2\).
+
+The multiple regression coefficient \(\beta_1\) is found by regressing
+\(e_{y|2}\) on \(e_{1|2}\). Since the means of the residuals are 0, the
+formula is \(\beta_1 = \dfrac{Cov(e_{y|2}, e_{1|2})}{Var(e_{1|2})}\).
+
+We first solve for the denominator. We find
+
+\begin{aligned}
+\text{Var}(e_{1|2}) &= E[(Z_1 - r_{12}Z_2)^2] \\
+&= E[Z_1^2 - 2r_{12}Z_1 Z_2 + r_{12}^2 Z_2^2] \\
+&= E[Z_1^2] - 2r_{12}E[Z_1 Z_2] + r_{12}^2 E[Z_2^2] \\
+&= 1 - 2r_{12}^2 + r_{12}^2 \\
+&= 1 - r_{12}^2
+\end{aligned}
+
+Note that since the variables are standardized, we know that
+\(E[Z_i^2] = 1\) and that \(E[Z_i Z_j] = r_{ij}\). Also that
+\(r_{ii} = 1\).
+
+Next we solve for the numerator.
+
+\begin{aligned}
+\text{Cov}(e_{y|2}, e_{1|2}) &= E[(Z_Y - r_{y2}Z_2)(Z_1 - r_{12}Z_2)] \\
+&= E[Z_Y Z_1 - r_{12}Z_Y Z_2 - r_{y2}Z_2 Z_1 + r_{y2}r_{12}Z_2^2] \\
+&= E[Z_Y Z_1] - r_{12} E[Z_Y Z_2] - r_{y2}E[Z_2 Z_1] + r_{y2} r_{12} E{Z_2^2} \\  
+&= r_{y1} - r_{12}r_{y2} - r_{y2}r_{12} + r_{y2}r_{12} \\
+&= r_{y1} - r_{y2}r_{12}
+\end{aligned}
+
+Putting it all together and we convert back to unstandarized
+\(X_1, X_2\) , we find
+
+\begin{aligned}
+\beta_1 &= \dfrac{r_{y1} - r_{y2} r_{12}}{1-r^2_{12}}
+\end{aligned}
+
+\begin{aligned}
+\hat{\beta_1} &= \beta_1 \cdot \dfrac{S_Y}{S_{X_1}} \\
+&= \beta_1 \cdot \sqrt{\dfrac{s_{Y}^2}{s_{X_1}^2}} \\
+&= \dfrac{r_{y1} - r_{y2} r_{12}}{1-r^2_{12}} \cdot \sqrt{\dfrac{s_{Y}^2}{s_{X_1}^2}} \\
+&= \dfrac{r_{y1}\dfrac{S_Y}{S_{X_1}} - \sqrt{\dfrac{s_{Y}^2}{s_{X_1}^2}} r_{y2} r_{12}}{1-r^2_{12}} \\
+&= \dfrac{\hat{\beta_1'} - \sqrt{\dfrac{s_{Y}^2}{s_{X_1}^2}} r_{y2} r_{12}}{1-r^2_{12}}
+\end{aligned}
+
+where the model coefficient for the slop given Y regressed on only
+\(X_1\) is \(\hat{\beta_1'} = r_{y1}\dfrac{S_Y}{S_{X_1}}\).
+
+Therefore, we have computed the relationship of the parameters between
+the model based only on \(X_1\) and the ordinary regression model based
+on both \(X_1\) and \(X_2\).
+
+\subsection{Problem 5}\label{problem-5}
+
+The dataset rock in the faraway library contains 48 rock samples
+obtained from twelve core samples from petroleum reservoirs sampled a
+four cross sections. Each rock was measured for permeability.
+Characteristics of the rock were its total perimeter of pores, total
+area of pores, and shape. Your goal is to determine the ``best'' linear
+model using these characteristics. Faraway (page 24) summarizes various
+steps to consider in this model selection process. Please describe your
+steps to derive the best model, what is your best model and any output
+and figures to support this model.
+
+\subsubsection{Begin with data
+exploration}\label{begin-with-data-exploration}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\#Clear the workspace}
+\FunctionTok{rm}\NormalTok{(}\AttributeTok{list=}\FunctionTok{ls}\NormalTok{())}
+\FunctionTok{library}\NormalTok{(faraway)}
+\FunctionTok{library}\NormalTok{(MASS)}
+
+\FunctionTok{data}\NormalTok{(rock)}
+\FunctionTok{summary}\NormalTok{(rock)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+##       area            peri            shape              perm        
+##  Min.   : 1016   Min.   : 308.6   Min.   :0.09033   Min.   :   6.30  
+##  1st Qu.: 5305   1st Qu.:1414.9   1st Qu.:0.16226   1st Qu.:  76.45  
+##  Median : 7487   Median :2536.2   Median :0.19886   Median : 130.50  
+##  Mean   : 7188   Mean   :2682.2   Mean   :0.21811   Mean   : 415.45  
+##  3rd Qu.: 8870   3rd Qu.:3989.5   3rd Qu.:0.26267   3rd Qu.: 777.50  
+##  Max.   :12212   Max.   :4864.2   Max.   :0.46413   Max.   :1300.00
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{pairs}\NormalTok{(rock, }\AttributeTok{main=}\StringTok{"Scatterplot Matrix of Rock Data"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\pandocbounded{\includegraphics[keepaspectratio]{STAT526_HW1_files/figure-latex/unnamed-chunk-3-1.pdf}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\# Use Box{-}Cox to determine best transformation for perm}
+\NormalTok{lmod }\OtherTok{\textless{}{-}} \FunctionTok{lm}\NormalTok{(perm }\SpecialCharTok{\textasciitilde{}}\NormalTok{ area }\SpecialCharTok{+}\NormalTok{ peri }\SpecialCharTok{+}\NormalTok{ shape, }\AttributeTok{data =}\NormalTok{ rock)}
+\NormalTok{bc }\OtherTok{\textless{}{-}} \FunctionTok{boxcox}\NormalTok{(lmod, }\AttributeTok{plotit =} \ConstantTok{TRUE}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\pandocbounded{\includegraphics[keepaspectratio]{STAT526_HW1_files/figure-latex/unnamed-chunk-3-2.pdf}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\# 3. Identify the exact lambda that maximizes the log{-}likelihood}
+\NormalTok{lambda }\OtherTok{\textless{}{-}}\NormalTok{ bc}\SpecialCharTok{$}\NormalTok{x[}\FunctionTok{which.max}\NormalTok{(bc}\SpecialCharTok{$}\NormalTok{y)]}
+\FunctionTok{print}\NormalTok{(lambda)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## [1] 0.2222222
+\end{verbatim}
+
+It seems like we should probably choose lambda in the confidence
+interval. For interpretability, it is probably best to pick 0, which is
+close to being in the 95\% confidence interval. We can do a quick
+initial analysis to check this.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\# Compare Base Model vs. Log{-}Transformed Model}
+\NormalTok{full\_model }\OtherTok{\textless{}{-}} \FunctionTok{lm}\NormalTok{(perm }\SpecialCharTok{\textasciitilde{}}\NormalTok{ area }\SpecialCharTok{+}\NormalTok{ peri }\SpecialCharTok{+}\NormalTok{ shape, }\AttributeTok{data =}\NormalTok{ rock)}
+\NormalTok{log\_model  }\OtherTok{\textless{}{-}} \FunctionTok{lm}\NormalTok{(}\FunctionTok{log}\NormalTok{(perm) }\SpecialCharTok{\textasciitilde{}}\NormalTok{ area }\SpecialCharTok{+}\NormalTok{ peri }\SpecialCharTok{+}\NormalTok{ shape, }\AttributeTok{data =}\NormalTok{ rock)}
+
+\FunctionTok{par}\NormalTok{(}\AttributeTok{mfrow=}\FunctionTok{c}\NormalTok{(}\DecValTok{1}\NormalTok{,}\DecValTok{2}\NormalTok{))}
+\FunctionTok{plot}\NormalTok{(full\_model, }\AttributeTok{which=}\DecValTok{1}\NormalTok{, }\AttributeTok{main=}\StringTok{"Original Scale"}\NormalTok{)}
+\FunctionTok{plot}\NormalTok{(log\_model, }\AttributeTok{which=}\DecValTok{1}\NormalTok{, }\AttributeTok{main=}\StringTok{"Log Scale"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\pandocbounded{\includegraphics[keepaspectratio]{STAT526_HW1_files/figure-latex/unnamed-chunk-4-1.pdf}}
+
+Now perhaps a step-wise AIC model selection:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{best\_mod }\OtherTok{\textless{}{-}} \FunctionTok{step}\NormalTok{(log\_model, }\AttributeTok{direction =} \StringTok{"both"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Start:  AIC=-11.54
+## log(perm) ~ area + peri + shape
+## 
+##         Df Sum of Sq    RSS     AIC
+## - shape  1     0.727 32.675 -12.460
+## <none>               31.949 -11.539
+## - area   1    22.788 54.736  12.304
+## - peri   1    53.988 85.937  33.956
+## 
+## Step:  AIC=-12.46
+## log(perm) ~ area + peri
+## 
+##         Df Sum of Sq     RSS     AIC
+## <none>                32.675 -12.460
+## + shape  1     0.727  31.949 -11.539
+## - area   1    28.977  61.652  16.015
+## - peri   1    81.412 114.088  45.557
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{summary}\NormalTok{(best\_mod)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## 
+## Call:
+## lm(formula = log(perm) ~ area + peri, data = rock)
+## 
+## Residuals:
+##     Min      1Q  Median      3Q     Max 
+## -1.9801 -0.5936  0.1406  0.6637  1.4581 
+## 
+## Coefficients:
+##               Estimate Std. Error t value Pr(>|t|)    
+## (Intercept)  5.746e+00  3.621e-01  15.867  < 2e-16 ***
+## area         5.144e-04  8.143e-05   6.317 1.05e-07 ***
+## peri        -1.616e-03  1.526e-04 -10.589 8.41e-14 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 0.8521 on 45 degrees of freedom
+## Multiple R-squared:  0.7426, Adjusted R-squared:  0.7311 
+## F-statistic:  64.9 on 2 and 45 DF,  p-value: 5.49e-14
+\end{verbatim}
+
+Our best model keeps area and perimeter. We can now check the
+diagnostics.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{par}\NormalTok{(}\AttributeTok{mfrow=}\FunctionTok{c}\NormalTok{(}\DecValTok{2}\NormalTok{,}\DecValTok{2}\NormalTok{))}
+\FunctionTok{plot}\NormalTok{(best\_mod)}
+\end{Highlighting}
+\end{Shaded}
+
+\pandocbounded{\includegraphics[keepaspectratio]{STAT526_HW1_files/figure-latex/unnamed-chunk-6-1.pdf}}
+
+Looking at the plots, we try to ascertain whether our assumptions for
+the model hold true. In this case we see no distinct pattern in the
+residuals vs fitted plot and the Normal QQ plot shows a diagonal line,
+showing normal distribution. Things look good.
+
+We can interpret our final model. Positive coefficient for area means
+that larger pores generally increase permeability and negative
+coefficient for perimeter means that for a fixed area, a larger
+perimeter implies lower permeability.
+
+\end{document}
