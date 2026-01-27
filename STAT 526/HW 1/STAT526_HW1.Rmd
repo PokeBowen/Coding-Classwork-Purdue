@@ -191,6 +191,32 @@ xtabs(round(ppu,3)~econ+equip,pdf)
 
 We can finally view our results. They are indeed quite similar to what we saw in topic one. The predicted percent under count is nearly identical (at most off by less than one percent) to our OLS model. However, it seems that the variables in our model have changed in significance slightly. In fact, we seem to have lost some variables like equip4:econ2.   
 
+We can also do this simply in GLM with binomial family:
+```{r}
+model_binomial <- glm(cbind(ballots - votes, votes) ~ equip + econ + rural + perAA + equip:econ + equip:perAA, 
+                      family = binomial, 
+                      data = gavote)
+
+summary(model_binomial)
+
+par(mfrow=c(1,2))
+plot(modelbetter2, which = 3, main = "OLS (Heteroscedasticity)")
+plot(model_binomial, which = 3, main = "WLS (Standardized)")
+
+### Getting tables of predictions
+pdf <- data.frame(econ=rep(levels(gavote$econ),5),equip=rep(levels(gavote$equip), rep(3,5)), perAA=0.233, rural="rural")
+ppr = predict(model_wls,new=pdf)
+xtabs(round(ppr,3)~econ+equip,pdf)
+
+pdf <- data.frame(econ=rep(levels(gavote$econ),5),equip=rep(levels(gavote$equip), rep(3,5)), perAA=0.233, rural="urban")
+ppu = predict(model_binomial, newdata = pdf, type = "response")
+xtabs(round(ppu, 3) ~ econ + equip, pdf)
+
+exp(coef(model_binomial))
+```
+We can look at the e to the coefficients power of our GLM model to try to interpret our odds ratio. We see that economy increases the undercount the most while the equipment type increases and decreases by only a little. There is one equipment and economy combination that seems to be most likely to cause undercounts (punch cards and low economy). This is similar results to what our OLS and WLS models above tell us. It is hard to compare GLM model to OLS model in terms of comparing the coefficient values but the results between the two are similar. 
+
+The outcomes of the two models (OLS vs GLM) prediction results actually vary more than OLS and WLS. This is likely because it knows this is a binomial model that can only have probabilities between 0 and 1. 
 
 ## Problem 4
 
