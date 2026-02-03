@@ -1,0 +1,197 @@
+---
+title: "STAT 526 HW 2"
+output:
+  pdf_document: default
+---
+
+Code is in this R Notebook. Can use outline feature in the PDF to jump to different problems.
+
+# P0
+
+Bowen Zheng
+
+# P1
+
+> The dataset attitude in the faraway library contains survey responses from clerical employees of a large financial instiution. Approximately 35 employees scores were aggregated for each of 30 departments. Your goal is to determine the “best” linear model to predict rating given the six predictors. Please briefly describe your steps to derive the best model, what is your best model and any output and figures to support this model.
+
+```{r}
+# Load libraries
+# datasets contains 'attitude', car provides VIF functions
+if(!require(car)) install.packages("car")
+library(faraway)
+library(MASS)
+library(car)
+library(GGally)    
+library(corrplot)
+```
+
+Let us first have a look at our data.
+
+```{r}
+data("attitude")
+# 1. Fit the Full Model (no interactions for now)
+full_model <- lm(rating ~ ., data = attitude)
+summary(full_model)
+
+# Check for Multicollinearity
+vif(full_model)
+
+# Correlation
+ggpairs(attitude, title="Scatterplot Matrix of Attitude Data")
+cor_matrix <- cor(attitude)
+corrplot(cor_matrix, method = "color", addCoef.col = "black", 
+         type = "upper", tl.col = "black", diag = FALSE)
+```
+Rating and complaints seems to have rather high correlation.
+VIF here does not show to us any redundant predictors. We will keep this in mind as we go into variable selection.
+
+```{r}
+# 2. Automated Model Selection (Backward Elimination by AIC)
+step_model <- step(full_model, direction = "backward")
+
+# Let us also look through full interaction model
+# May be dealing with a limited data issue, 30 observations, 15 predictors
+# The formula ( . )^2 means "all main effects and all their two-way interactions"
+full_interaction_model <- lm(rating ~ (.)^2, data = attitude)
+# Check the summary
+summary(full_interaction_model)
+# We use step() to prune this massive model down
+best_interaction_model <- step(full_interaction_model, direction = "backward", trace = 0)
+```
+
+We use backwards stepwise AIC model selection. One in the case of selecting on just the 6 predictors and the other one selecting on the 6 predictors and 9 interactions. It may not be very helpful to look at the second case because we only have 30 observations but 15 predictors.
+
+```{r}
+# 3. Final Refined Model
+# Based on step() results and p-value inspection, we arrive at this model:
+best_model <- lm(rating ~ complaints + learning, data = attitude)
+summary(best_model)
+summary(best_interaction_model)
+```
+
+The first model seems promising. Lowest AIC and it also has predictors with statistical significance. The second one from the all interaction model seems to do much worse. Let us continue with the first model of only the two additive main predictors: complaints and learning.
+
+Let us check for the interaction between complaints and learning.
+
+```{r}
+model_int <- lm(rating ~ complaints * learning, data = attitude)
+anova(best_model, model_int)
+
+# Check the AIC for both
+AIC(best_model, model_int)
+
+# 5. Look at the summary of the interaction model
+summary(model_int)
+```
+
+It seems like adding the interaction is not helpful. ANOVA comparing of the fit of the base model vs the interaction model shows that we shoudl not choose the interaction model. The interaction model also has higher AIC. We continue with our basse model again.
+
+```{r}
+# 4. Diagnostic Plots
+par(mfrow=c(2,2))
+plot(best_model)
+```
+
+This generates 4 plots: Residuals vs Fitted, Normal Q-Q, Scale-Location, and Cook's distance. This is to make sure that our model properly satisfies the assumptions needed. The residuals vs fitted seems random, scale location and residuals vs leverage seem ok, the QQ plot is generally along the line, etc. Our diagnosis looks decent. Our final model is rating predicted by learning and complaints. 
+
+$$\text{rating} = 9.87 + 0.644(\text{complaints}) + 0.211(\text{learning})$$
+
+While it is hard to interpret the final model given the lack of prior knowledge, we do know that learning is not statistically significant in the model. However, it does lower the AIC score so it does provide a meaningful improvement to the model so we choose to include it. It could be that more complaints and learning increase the rating and that the average rating is already quite high at 9.87.
+
+# P3
+
+> Faraway Chapter 8 Exercise #1.
+
+Data is generated from the exponential distribution with density $f(y) = \lambda \text{exp}(-\lambda y)$ where $\lambda ,y > 0$.
+
+## a.)
+> Identify the specific form of $\lambda,\phi$,a(),b() and c() for the exponential distribution.
+
+$$
+\begin{aligned}
+f(y; \theta, \phi) 
+&= \lambda e^{-\lambda y} \\
+&= \text{exp}(\text{ln} (\lambda e^{-\lambda y})) \\
+&=  \text{exp}(-\lambda y + \text{ln} \lambda) \\
+&= \text{exp}(\dfrac{y(-\lambda)-(-\text{ln}\lambda)}{1} + 0)
+\end{aligned}
+$$
+This gives us $\theta = -\lambda$, $b(\theta) = -ln(-\theta) = -ln(\lambda)$, $\phi =1$, $a(\phi) = 1$, $c(y,\phi) = 0$.
+
+## b.) 
+
+> What is the canonical link and variance function for a GLM with a response following the exponential distribution?
+
+The canonical link function for Exponential distribution is that of Gamma. Exponential distribution is a special form of Gamma. $\eta = \mu^{-1}$ according to the Faraway textbook page 154.
+
+Technically, however, we know that the actual canonical form is $\mu = E[y]$. Since $\theta = - \lambda$ and $\mu = \dfrac{1}{\lambda} = \dfrac{-1}{\theta}$. Then $\theta = \dfrac{-1}{\mu}$. Then $g(\mu) = - \mu^{-1}$ is our link function.
+
+We know that $Var(Y) = b''(\theta )a(\phi )$. 
+
+$$b''(\theta) = \frac{d}{d\theta} \left( -\frac{1}{\theta} \right) = \frac{1}{\theta^2}$$
+
+Then $Var(Y) = \frac{1}{\theta^2} = \mu^2$.
+
+## c.)
+
+>  Identify a practical difficulty that may arise when using the canonical link in this instance.
+
+When trying to predict $\eta = \frac{-1}{\mu} = X \beta$, we may find that we can get data such that $X\beta$ is positive and thus the mean is negative. Exponential is always semi-positive mean, so this would be a big issue if that were to be the case.
+
+## d.)
+
+>  When comparing nested models in this case, should an F or X^2 test be used? Explain.
+
+This is not a regular SSE model. Since we are using GLM on exponential, we know $\phi$ and we should use Pearson $X^2$ test. The F test with $\phi=1$ is just a scaled version of the Chi-squared test anyways. However, it is likely that for small data sets, we cannot meet the assumptions of the chi-squared test.
+
+## e.)
+
+> Express the deviance in this case in terms of the responses $y_i$ and the fitted values $\hat{\mu_i}$
+
+From the textbook, for Gamma distributions, of which exponential is, we find
+
+$$D = 2 \sum_{i=1}^{n} \left[ \frac{y_i - \hat{\mu}_i}{\hat{\mu}_i} - \ln\left(\frac{y_i}{\hat{\mu}_i}\right) \right]$$
+
+We can derive this relatively simply by plugging into our deviance formula.
+
+Deviance is defined:
+
+$$D = 2 \sum [ \ell(y_i, y_i) - \ell(\hat{\mu}_i, y_i) ]$$
+
+We start with the log likelihood of $f(y) = \lambda \exp(-\lambda y)$. By plugging in $\lambda = 1/\mu$, we find
+
+$$f(y; \mu) = \frac{1}{\mu} \exp\left(-\frac{y}{\mu}\right)$$
+
+$$\ln f(y; \mu) = -\ln(\mu) - \frac{y}{\mu}$$
+We have two log likelihoods:
+
+$$\ell(y_i, y_i) = -\ln(y_i) - \frac{y_i}{y_i} = -\ln(y_i) - 1$$
+
+$$\ell(\hat{\mu}_i, y_i) = -\ln(\hat{\mu}_i) - \frac{y_i}{\hat{\mu}_i}$$
+
+We can simply plug these values into our deviance formula:
+
+$$
+\begin{aligned}
+D 
+&= 2 \sum [ \ell(y_i, y_i) - \ell(\hat{\mu}_i, y_i) ] \\
+&=2 \sum_{i=1}^{n} \left[ \left( -\ln(y_i) - 1 \right) - \left( -\ln(\hat{\mu}_i) - \frac{y_i}{\hat{\mu}_i} \right) \right] \\
+&= 2 \sum_{i=1}^{n} \left[ \frac{y_i - \hat{\mu}_i}{\hat{\mu}_i} - \ln\left(\frac{y_i}{\hat{\mu}_i}\right) \right]
+\end{aligned}
+$$
+
+This is the same as the one in the textbook.
+
+# P4
+
+> Faraway Chapter 8 Exercise #2.
+
+>  The Conway–Maxwell–Poisson distribution has probability function: $P(Y = y) = \frac{\lambda^y}{(y!)^\nu} \frac{1}{Z(\lambda, \nu)}$. Place this in exponential family form, identifying all the relevant components necessary for use in a GLM.
+
+
+
+
+
+```{r}
+
+```

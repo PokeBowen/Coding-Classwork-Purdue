@@ -1,0 +1,218 @@
+---
+title: "STAT 545: HW 2 Report"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+
+# Problem 1
+
+We have 2 files. They are mainly based on the provided code. I just had to seperate the code into two seperate files. The code is here:
+
+file1.R
+```{r, eval=FALSE}
+source("file2.R")
+
+# Read data
+score <- read.csv("scores.csv", header = TRUE)
+
+# Just calculate the grades
+final_results <- calculate_letter_grades(score)
+
+# Check our work
+# print(final_results)
+
+# Write to a CSV
+write.csv(final_results, "final_letter_grades.csv", row.names = FALSE)
+```
+
+
+file2.R
+```{r}
+# We create our function, basically copied and pasted
+
+calculate_letter_grades <- function(score) {
+  #unsubmitted hw/quiz/exam/project counts as 0 score
+  score[is.na(score)] <- 0
+  
+  #Calculate component-wise scores according to the syllabus
+  hw.component = (score$HW_maxscore_100/100)*30
+  midterm.component = (score$Midterm_maxscore_50/50)*25
+  final.component = (score$Final_maxscore_50/50)*25
+  project.component=(score$Project_maxscore_100/100)*20
+  
+  #Calculate total score
+  total = cbind(hw.component, midterm.component, final.component, project.component)
+  totalscore = apply(total,1,sum)
+  
+  #Assign grades
+  grades = rep(NA,nrow(score))
+  
+  for ( i in 1:nrow(score)){
+    if (totalscore[i]< 59) grades[i] = "F"
+    else if ((totalscore[i]>= 60) & (totalscore [i] <70)) grades[i] = "D"
+    else if ((totalscore[i]>= 70) & (totalscore [i] < 80)) grades[i] = "C"
+    else if ((totalscore[i]>= 80) & (totalscore [i] < 90)) grades[i] = "B"
+    else if ((totalscore[i]>= 90) & (totalscore [i] <100)) grades[i] = "A"
+    else grades[i] = "ERROR"
+  }
+  
+  finalscore = cbind(as.character(score[,1]), totalscore, grades)
+  finalscore
+}
+```
+
+We can test our code and look at the results:
+
+
+```{r}
+# Read data
+score <- read.csv("scores.csv", header = TRUE)
+
+# Just calculate the grades
+final_results <- calculate_letter_grades(score)
+
+# Check our work
+print(final_results)
+```
+
+# Problem 2
+
+Professor's code
+
+profexample.R
+```{r}
+## Author: Anindya Bhadra
+## STAT 545
+## Example of code profiling and timing: for loop vs. apply()
+##Clear workspace and load required libraries
+rm(list=ls())
+library(MASS)
+
+pow=function(x,lambda){x^lambda}
+
+## Write a function called "rowstat" using for loop to compute row mean and row sd of a matrix
+rowstat=function(x){
+	rr=c(NA, length=nrow(x))
+	rrsq=c(NA, length=nrow(x))
+	for (i in 1:nrow(x))
+		{rr[i] = sum(x[i,])
+		 rrsq[i]=sum(pow(x[i,],2))
+	}
+	list(mean=rr/ncol(x),sd=sqrt((rrsq - ncol(x)*(pow(rr/ncol(x),2)))/(ncol(x)-1)))
+}
+
+Sigma <- matrix(c(10,3,3,2),2,2)
+
+## Generate 10,000 samples from a bivariate Normal distribution with mean 0 and covariance matrix Sigma
+xx=mvrnorm(n=10000,c(0,0), Sigma)
+
+## Call the function "rowstat"
+pp=rowstat(xx)
+
+## Do the same operations using apply
+llm=apply(xx,1,mean)
+lls=apply(xx,1,sd)
+
+## Check that they give the same result
+head (pp$mean)
+head(llm)
+head(pp$sd)
+head(lls)
+
+## Check the differences in time
+system.time(rowstat(xx))
+system.time(apply(xx,1,mean)) +  system.time(apply(xx,1,sd)) 
+
+## Use Rprof() to profile the code. Is Rprof() useful here? Where is the maximum time being spent?
+Rprof(interval=0.002)
+pp=rowstat(xx)
+Rprof(NULL)
+summaryRprof()
+```
+
+## Part 1
+We can update his function rowstat to compute row-wise medians instead of row mean and sd like it currently does in his code.
+
+We use the apply function row-wise (MARGIN=1) and we apply the median to each row.
+```{r}
+rowstat <- function(x){
+	apply(Sigma, 1, median)
+}
+```
+
+A more manual approach would require sorting each row and then computing the median either as the average of the two middle values or the singular middle value. Alternatively, just use median in each row like the example below.
+
+```{r}
+rowstat <- function(x){
+	r_md <- numeric(length=nrow(x))
+	for (i in 1:nrow(x))
+		{r_md[i] <- median(x[i,])
+	}
+	list(median = r_md)
+}
+```
+
+
+We can even test it out:
+```{r}
+Sigma <- matrix(c(10,3,3,2),2,2)
+medians <- rowstat(Sigma)
+medians
+```
+
+
+## Part 2
+
+We update the code and we can run our function against the median function already in R. All code is also in the R script file. WE update it to 15,000 samples and test how fast they each run.
+
+profexample_updated_Problem2_Part2.pdf
+```{r}
+## Author: Anindya Bhadra
+## STAT 545
+## Example of code profiling and timing: for loop vs. apply()
+##Clear workspace and load required libraries
+rm(list=ls())
+library(MASS)
+
+pow=function(x,lambda){x^lambda}
+
+## Write a function called "rowstat" using for loop to compute row medians
+rowstat <- function(x){
+  r_md <- numeric(length=nrow(x))
+  for (i in 1:nrow(x))
+  {r_md[i] <- median(x[i,])
+  }
+  list(median = r_md)
+}
+
+Sigma <- matrix(c(10,3,3,2),2,2)
+
+## Generate 15,000 samples from a bivariate Normal distribution with mean 0 and covariance matrix Sigma
+xx=mvrnorm(n=15000,c(0,0), Sigma)
+
+## Call the function "rowstat"
+pp=rowstat(xx)
+
+## Do the same operations using apply
+llm=apply(xx,1,median)
+
+## Check that they give the same result
+head (pp$median)
+head(llm)
+
+## Check the differences in time
+system.time(rowstat(xx))
+system.time(apply(xx,1,median))
+
+## Use Rprof() to profile the code. Is Rprof() useful here? Where is the maximum time being spent?
+Rprof(interval=0.002)
+pp=rowstat(xx)
+Rprof(NULL)
+summaryRprof()
+```
+
+We can see that the heads do indeed match up. Unfortunately, it seems that using apply is faster than our method of applying median using a for loop (0.25 seconds for rowstat() to 0.24 for apply() in my best run). However, it is not too much faster, only by 0.01 seconds. Most of the time spent is actually using the function median, which makes sense. Median probably requires some sort of sorting algorithm that might take some time. 
+
+Interestingly enough, every time I knit this into a pdf, it takes a vastly different amount of time to run the codes, from 0.24 seconds to over 0.5. I will report the times I saw on my last run but it seems quite inconsistent and it is hard to clearly say which method is truly faster given such variability. The true times may be inaccurate in the final knit file. The code is provided as documentation within this notebook.
+
