@@ -98,7 +98,9 @@ $$\text{rating} = 9.87 + 0.644(\text{complaints}) + 0.211(\text{learning})$$
 
 While it is hard to interpret the final model given the lack of prior knowledge, we do know that learning is not statistically significant in the model. However, it does lower the AIC score so it does provide a meaningful improvement to the model so we choose to include it. It could be that more complaints and learning increase the rating and that the average rating is already quite high at 9.87.
 
-# P3
+\newpage
+
+# P2
 
 > Faraway Chapter 8 Exercise #1.
 
@@ -182,16 +184,97 @@ $$
 
 This is the same as the one in the textbook.
 
-# P4
+\newpage
+
+# P3
 
 > Faraway Chapter 8 Exercise #2.
 
 >  The Conway–Maxwell–Poisson distribution has probability function: $P(Y = y) = \frac{\lambda^y}{(y!)^\nu} \frac{1}{Z(\lambda, \nu)}$. Place this in exponential family form, identifying all the relevant components necessary for use in a GLM.
 
 
+We start with the pmf
+
+$$
+\begin{aligned}
+P(Y = y) 
+&= \frac{\lambda^y}{(y!)^\nu} \frac{1}{Z(\lambda, \nu)} \\
+&= \exp \left[ \ln \left( \frac{\lambda^y}{(y!)^\nu Z(\lambda, \nu)} \right) \right] \\
+&= \exp \big( y \ln \lambda - \nu \ln(y!) - \ln Z(\lambda, \nu) \big) \\
+\end{aligned}
+$$
+
+OK, so now we fit it in the form. 
+
+$$f(y; \theta, \phi) = \exp \left( \frac{y\theta - b(\theta)}{a(\phi)} + c(y, \phi) \right)$$
+
+So this gives us
+
+$$
+\begin{aligned}
+\theta &= ln \lambda \\
+\phi &= v \\
+a(\phi) &= 1 \\
+b(\theta) &= \text{ln} Z(e^\theta, v) \\
+c(y, \phi) &= -v \text{ln}(y!)
+\end{aligned}
+$$
+\newpage
+
+# P4
+
+> Consider the following distributions and determine whether they can be put in exponential family form. If it is not possible, consider whether there is a special case which follows the form.
+
+## Uniform
+
+$$
+\begin{aligned}
+f(y; \alpha, \beta) &= \frac{1}{\beta - \alpha} I(y \in[\alpha, \beta]) \\
+&= \exp(-\ln(\beta - \alpha)) \cdot I_{[\alpha, \beta]}(y)
+\end{aligned}
+$$
+
+I do not think it is possible to absorb the indicator variable into theta or b(theta) terms. The special case would be if we know alpha and beta, but that would not be an interesting distribution and we would not have to use GLM for if that were the case.
+
+## Weibull
 
 
+$$
+\begin{aligned}
+f(y; \alpha, \beta) 
+&= \alpha \beta^{-\alpha} y^{\alpha-1} \exp\left[ \left( \frac{y}{\beta} \right)^\alpha \right] \\
+&= \exp \left( \ln\left(\frac{\alpha}{\beta^\alpha}\right) + (\alpha - 1)\ln(y) + \left(\frac{y}{\beta}\right)^\alpha \right)
+\end{aligned}
+$$
 
-```{r}
+There is no way to make a $y \theta$ term here, necessary for determining that it is EFD. The general Weibull distribution is not an exponential family.
 
-```
+However, we know that, more generally, if we fix $\alpha$ then the Weibull distribution is a one parameter EFD. Even so, it still is unable to be explicitly stated in the way that we need for EFD for GLM. We can reach the form required when $\alpha = 1$. Then we find 
+
+$$f(y; 1, \beta) = \frac{1}{\beta} \exp\left( \frac{y}{\beta} \right)$$
+
+By letting $\theta = -1/\beta$, $b(\theta) = \ln(-1/\theta)$, $c=0$ and $a(\phi) = 1$, we get:
+
+$$f(y; \theta) = \exp(y\theta - \ln(-1/\theta))$$
+
+
+For general case of fixed $\alpha$, we can transform $Z = y^\alpha$, and use $Z$ instead. We can simplify our earlier formula and find
+
+$$f(y) = \exp \left( \frac{y^\alpha}{\beta^\alpha} + \ln(\alpha) - \alpha\ln(\beta) + (\alpha-1)\ln(y) \right)$$
+
+Where $z=y^\alpha$, $a(\phi)=1$, $\theta = \beta^{-\alpha}$, $b(\theta)= ln(\theta^{-1/\alpha})$, and $c$ would contain the remaining terms.  
+
+## Gumbel distribution
+
+$$
+\begin{aligned}
+f(y; \alpha, \beta) 
+&= \frac{1}{\beta} \exp \left( \frac{y - \alpha}{\beta} - \exp\left( \frac{y - \alpha}{\beta} \right) \right) \\
+&= \exp \left( \frac{y}{\beta} - \frac{\alpha}{\beta} - \exp\left(\frac{y}{\beta}\right)\exp\left(-\frac{\alpha}{\beta}\right) - \ln(\beta) \right)
+\end{aligned}
+$$
+
+Again, we cannot find a general $y \theta$ because for any $\theta$ we choose, we have $\exp(y/\beta) \cdot \exp(-\alpha/\beta)$ also that would mess it up. This does not fit the usual EFD form for GLM.
+
+For fixed $\beta$ we still cannot have the form we want. However, we can have a transformation like earlier in the Weibull distribution AND fix/know $\beta$. Let $Z = \exp(y/\beta)$. Then $\theta = -\exp(-\alpha/\beta)$, $b(\theta) = -ln(-\theta)$, and $c$ contains our remaining terms. 
+
