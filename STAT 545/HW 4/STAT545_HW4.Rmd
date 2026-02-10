@@ -1,0 +1,168 @@
+---
+title: "STAT 545 HW 4"
+output: pdf_document
+date: "`r Sys.Date()`"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# 1
+
+Consider a regression model with p < n:
+
+$$y = X \beta + \epsilon$$
+
+where $y \in R^n, X \in R^{n \times p}$ and $\epsilon \sim N(0,\sigma^2 I_n)$ and rank(X) = p. Recall that the ridge regression estimate is given by 
+
+$$ \hat{\beta}_{ridge} = (X^T X + \lambda I)^{-1} X^T y  $$
+
+for given $\lambda > 0$. 
+
+## A.
+
+Let the SVD of X be given by $X= UDV^T$. Show that the fitted value is 
+
+$$ \hat{y} = X \hat{\beta}_{ridge} = \sum_{j=1}^p u_j \frac{d^2_j}{d^2_j + \lambda} u_j^T y$$
+
+where $u_j$ are the columns of U and $D = diag(d_j)$.
+
+First, since it is SVD, we know that $U^T U = V^T V = I_p$. We know the columns of U and V form an orthonormal bases for the row and column space of X respectively. 
+
+We first want to calculate $\hat{\beta}_{ridge}$.
+
+We know from chapter 2 notes, we can find
+
+$$X^T X = (V D U^T)(U D V^T) = V D^2 V^T$$
+
+Then, we can get it in a nice form like in the slides
+
+$$(X^T X + \lambda I) = V D^2 V^T + \lambda (V V^T) = V(D^2 + \lambda I)V^T$$
+
+Then, simple inverse (Is possible because we added lambda values along diagonal, making it positive definite). Note that the inverse of an orthonormal matrix is its own transpose.
+
+$$(X^T X + \lambda I)^{-1} = (V(D^2 + \lambda I)V^T)^{-1} = V(D^2 + \lambda I)^{-1}V^T$$
+
+We can now plug everything in and find
+
+$$
+\begin{aligned}
+\hat{\beta}_{ridge} 
+&= V(D^2 + \lambda I)^{-1}V^T (V D U^T) y \\
+& = V(D^2 + \lambda I)^{-1} D U^T y
+\end{aligned}
+$$
+
+Multiply by X now.
+
+$$
+\begin{aligned}
+\hat{y} &= X \hat{\beta}_{ridge} \\
+& = (UDV^T) V(D^2 + \lambda I)^{-1} D U^T y \\
+&= U D (D^2 + \lambda I)^{-1} D U^T y \\
+& = \sum_{j=1}^p u_j \frac{d^2_j}{d^2_j + \lambda} u_j^T y
+\end{aligned}
+$$
+
+Each $u_j$ is a column vector multiplied by the value of the j-th diagonal value in D (a diagonal matrix, $p\times p$), so we can treat $D (D^2 + \lambda I)^{-1} D$ as $\frac{d^2_j}{d^2_j + \lambda}$ and split the calculation of $\hat{y}$ as a sum of the operations on the j columns.
+
+## B.
+
+When the fitted value $\hat{y}$ has a form $\hat{y}= My$  where M is a matrix that
+does not depend on y then the “degrees of freedom” is given by the
+trace of the matrix M. Derive an expression (a scalar quantity) for
+the degrees of freedom of ridge regression.
+
+We know
+
+$$
+\begin{aligned}
+\hat{y} &= X \hat{\beta}_{ridge} \\
+& = (UDV^T) V(D^2 + \lambda I)^{-1} D U^T y \\
+&= U D (D^2 + \lambda I)^{-1} D U^T y \\
+\implies M &= U D (D^2 + \lambda I)^{-1} D U^T \\
+\end{aligned}
+$$
+
+Then 
+
+$$
+\begin{aligned}
+tr(M) &= tr (U D (D^2 + \lambda I)^{-1} D U^T) \\
+&= tr(D (D^2 + \lambda I)^{-1} D U^T U) \\
+& = tr(D (D^2 + \lambda I)^{-1} D) \\
+&= \sum_{j=1}^p \frac{d^2_j}{d^2_j + \lambda}
+\end{aligned}
+$$
+
+Given that the degree of freedom is equal to the trace, we find that $df = tr(M) =  \sum_{j=1}^p \frac{d^2_j}{d^2_j + \lambda}$.
+
+## C. 
+
+Take n = 70, p = 100. Simulate X and $\epsilon$ from i.i.d. standard normals.
+Take $\beta$ to be a vector of all ones and set $y = X \beta + \epsilon$. Take $\lambda = 1$ and
+verify that (a) that the ridge estimate is well-defined and (b) both ways
+of calculating the fitted value above (via matrix inverse and via SVD)
+indeed result in the same $\hat{y}$ in R. The commands svd() for calculating
+SVD may be useful.
+
+First we set it all up.
+
+```{r}
+set.seed(13)
+n <- 70
+p <- 100
+X <- matrix(rnorm(n * p), nrow = n, ncol = p)
+epsilon <- rnorm(n)
+beta <- rep(1, p)
+y <- X %*% beta + epsilon
+lambda <- 1
+```
+
+### Direct computation way
+
+```{r}
+beta_ridge <- solve(t(X) %*% X + lambda * diag(p)) %*% t(X) %*% y
+y_hat_inv <- X %*% beta_ridge
+
+# Check values
+beta_ridge
+y_hat_inv
+```
+
+
+### The SVD way
+
+We find $\beta_{ridge}$ and then compute the estimate $\hat{y}$.
+
+```{r}
+SVD_X <- svd(X)
+SVD_U <- SVD_X$u
+SVD_D <- SVD_X$d
+
+# We use the formula from part A.
+SVD_y_hat <- matrix(0, nrow = n, ncol = 1)
+for (j in 1:length(SVD_D)) {
+  uj <- SVD_U[, j, drop = FALSE]
+  d_diagonals <- (SVD_D[j]^2) / (SVD_D[j]^2 + lambda)
+  UTY <- t(uj) %*% y
+  SVD_y_hat <- SVD_y_hat + uj %*% (d_diagonals * UTY)
+}
+
+# Check our results
+print(SVD_y_hat)
+```
+### Check results
+
+```{r}
+max(abs(y_hat_inv - SVD_y_hat))
+```
+
+The two predictions that we got through the two different methods actually give us very similar results. They are nearly exactly the same.
+
+We have a totally good prediction for $\hat{y}$ even though in theory, it is not possible to get the inverse of $X^T X$ for regular LS approach but with our ridge regression, we can still calculate some sort of inverse that is close and get predicted values.
+
+
+
+
