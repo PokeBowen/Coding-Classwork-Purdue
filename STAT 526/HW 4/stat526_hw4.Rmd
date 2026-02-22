@@ -1,0 +1,473 @@
+---
+title: "STAT 526 Assignment 4"
+author: "Bowen Zheng"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Problem 0
+
+Bowen Zheng
+
+# Problem 1
+
+> The data set esoph contains a case-control study of esophageal cancer. The three ordered
+factors are age (6 levels), tobacco consumption (4 levels), and alcohol consumption (4 levels).
+
+## a.
+
+> Fit a binomial GLM that includes all two-factor interactions and use AIC to select the best
+model. State this model.
+
+
+```{r}
+data("esoph")
+
+full_model <- glm(cbind(ncases, ncontrols) ~ (agegp + alcgp + tobgp)^2, family = binomial, data = esoph)
+
+best_model <- step(full_model, direction = "both")
+summary(best_model)
+```
+
+We fit the model and find the best using AIC in both directions. 
+
+Our final model is
+
+$$\text{logit}(p) = \beta_0 + \beta_1(\text{agegp}) + \beta_2(\text{alcgp}) + \beta_3(\text{tobgp})$$
+
+It does not include interactions terms. However, there may be good reasoning to include a quadratic term for agegp. 
+
+## b.
+
+> Convert your factors to numerical representation using the unclass function. Then construct a simplified Binomial regression model using polynomials of these representations. [HINT: The the factors in the dataset are ordinal, thus R creates orthogonal
+polynomial rather than binary dummy variables. You can use the significant test results
+in part (a) to determine up to which polynomial degree you should use for the numerical
+regression.]
+
+
+```{r}
+# Create the new predictors
+esoph$age <- unclass(esoph$agegp) - 3.5
+esoph$alc <- unclass(esoph$alcgp) - 2.5
+esoph$tob <- unclass(esoph$tobgp) - 2.5
+
+# Our simplified model from our previous part a results
+simplified_model <- glm(cbind(ncases, ncontrols) ~ age + I(age^2) + alc + tob, family = binomial, data = esoph)
+
+summary(simplified_model)
+```
+
+## c.
+
+> Commment on the fit of this model. Include plots to support your summary
+
+We can first check residual deviance and estimate our dispersion
+
+```{r}
+pchisq(93.172, 83, lower=FALSE)
+summary(simplified_model)$deviance / summary(simplified_model)$df.residual
+```
+The test concludes that we fail to reject the null, indicating that the model fits the data well. Furthermore, our overdispersion parameter estimate is pretty close to 1, which is what we want.
+
+We also check the diagnostic plots
+
+```{r}
+library(statmod)
+q_resids <- qres.binom(simplified_model)
+plot(fitted(simplified_model), q_resids, xlab = "Fitted Probabilities", ylab = "Quantile Residuals", main = "Random Quantile Residual Plot")
+
+abline(h = 0, lty = 2, col = "blue")
+par(mfrow = c(2, 2))
+plot(simplified_model)
+```
+
+The random quantile residual plot seems to have no pattern and could be generally random normal around 0. 
+
+Residual plot does not show too many strong outliers, with not very large spread and pretty random. The QQ plot follows the diagonal line. The scale-location is pretty random and doesn't seem to have extremes, especially as the predicted values get larger. The residuals vs leverage shows no high leverage observations.  
+
+The overall fit seems good. No reason to doubt it.
+
+## d.
+
+> Construct a 95% confidence interval for the effect of moving one category higher in tobacco
+consumption.
+
+```{r}
+tob_coef <- summary(simplified_model)$coefficients["tob", "Estimate"]
+tob_se <- summary(simplified_model)$coefficients["tob", "Std. Error"]
+lower_log <- tob_coef - 1.96 * tob_se
+upper_log <- tob_coef + 1.96 * tob_se
+
+# We take exp to get to odds ratio
+exp(tob_coef)
+OR_lower <- exp(lower_log)
+OR_upper <- exp(upper_log)
+cat(OR_lower, OR_upper)
+
+# Or use built in R function that I found out only later...
+exp(confint(simplified_model, "tob"))
+```
+
+We expect the coefficient to be approximately normal and we use its estimate and standard deviation for the CI.
+
+We find CI (1.286794, 1.871727) which does not include 1.
+
+## e.
+
+> Construct a 95% confidence interval for the effect of moving from the 45-54 age group to the 55-
+64 age group.[HINT: You may want to use the vcov(model) function to obtain the covariance
+matrix of $\hat{\beta}$]
+
+Ok, first we have to figure out which levels we are looking at because we centered it all. We did -3.5 so group 45-54 is factor level 3 and group 55-64 is level 4. They correlate to -0.5 and 0.5 respectively. 
+
+We used both linear and quadratic factors so we first have to figure out:
+
+$$
+\begin{aligned}
+Diff &= [\beta_{age}(L4) + \beta_{age^2}(L4^2)] - [\beta_{age}(L3) + \beta_{age^2}(L3^2)] \\
+&= \beta_{age}(0.5 - (-0.5)) + \beta_{age^2}(0.5^2 - (-0.5)^2) \\
+&= \beta_{age}(1) + \beta_{age^2}(0) \\
+&= \beta_{age}
+\end{aligned}
+$$
+
+Ok, we just need a CI for just one times coefficient of age. We do this using the hint vcov
+
+```{r}
+beta_hat <- coef(simplified_model)
+V <- vcov(simplified_model)
+
+# Our contrast vector 'L' for the change from age group 3 to 4:
+# Change in age: (0.5) - (-0.5) = 1
+# Change in age^2: (0.25) - (0.25) = 0
+# The vector matches the order of coefficients in our model: (Intercept, age, I(age^2), alc, tob)
+L <- c(0, 1, 0, 0, 0) 
+
+# Estimate of the effect (Log-Odds)
+est_effect <- t(L) %*% beta_hat
+
+# Standard Error of the effect
+# SE = sqrt( L' * V * L )
+se_effect <- sqrt(t(L) %*% V %*% L)
+
+lower_log <- est_effect - 1.96 * se_effect
+upper_log <- est_effect + 1.96 * se_effect
+exp(c(lower_log, upper_log))
+
+# Or use R function to find it easily
+exp(confint(simplified_model, "age"))
+```
+
+We didn't really have to do all this because in the end we just wanted the 2nd SE so again we can simply use the built in R functions.Our final CI is (1.946060, 2.907738)
+
+\newpage
+
+# Problem 2: Faraway Chapter 3 Exercise #4
+
+> This problem concerns the modeling of the quantitative structure-activity relationships (QSAR) of the inhibition of dihydrofolate reductase (DHFR) by pyrimidines. We want to relate the physicochemical and/or structural properties as exhibited by the 26 predictors in pyrimidines with an activity level. We have structural information on 74 2,4-diamino- 5-(substituted benzyl) pyrimidines used as
+inhibitors of DHFR in E. coli. All the variables lie in [0,1].
+
+```{r}
+library(faraway)
+data(pyrimidines)
+```
+
+## a.
+
+> Plot the activity (response) against the first three predictors. Are any outliers in
+the response apparent? Remove any such cases.
+
+```{r}
+# Plotting activity against the first three predictors
+par(mfrow=c(1,3))
+plot(activity ~ p1.polar, data=pyrimidines, main="Activity vs p1.polar")
+plot(activity ~ p1.size, data=pyrimidines, main="Activity vs p1.size")
+plot(activity ~ p1.flex, data=pyrimidines, main="Activity vs p1.flex")
+```
+
+There is one obvious outlier that has values less than 0.2 in activity. 
+
+```{r}
+outlier_index <- which(pyrimidines$activity < 0.2)
+print(outlier_index)
+pyrimidines_clean <- pyrimidines[-outlier_index, ]
+```
+Remove the 10th observation
+
+## b.
+
+> Fit a Gaussian linear model for the response with all 26 predictors. How well
+does this model fit the data in terms of R^2? Plot the residuals against the fitted
+values. Is there any evidence of a violation of the standard assumptions?
+
+```{r}
+linear_model <- lm(activity ~ ., data = pyrimidines_clean)
+summary(linear_model)
+```
+
+Adjusted R-squared is 0.8034. We check for violations using standard diagnostic plots.
+
+```{r}
+par(mfrow = c(2, 2))
+plot(linear_model)
+```
+
+There are quite a few values with very high leverage. We can see this also in the QQ plot where they seem to not follow the diagonal line especially at the extremes of the theoretical quantiles. The residuals look ok without pattern. 
+
+## c.
+
+>  Fit a quasi-binomial model for the activity response. Compare the predicted
+values for this model to those for the Gaussian linear model. Take care to compute the predicted values in the appropriate scale. Compare the fitted coefficients between the two models. Are there any substantial differences?
+
+
+```{r}
+qb_model <- glm(activity ~ ., family = quasibinomial, data = pyrimidines_clean)
+summary(qb_model)
+
+# Plot
+preds_gaussian <- predict(linear_model)
+preds_quasi <- predict(qb_model, type = "response")
+plot(preds_gaussian, preds_quasi, 
+     xlab = "Gaussian Predictions", 
+     ylab = "Quasi-binomial Predictions",
+     main = "Comparison of Predicted Values")
+abline(0, 1, col = "red") # 45-degree line for perfect agreement
+```
+
+The two almost predict exactly the same activity levels. 
+
+## d.
+
+> Fit a Gaussian linear model with the logit transformation applied to the response. Compare the coefficients of this model with the quasi-binomial model.
+
+```{r}
+pyrimidines_clean$logit_activity <- log(pyrimidines_clean$activity / (1 - pyrimidines_clean$activity))
+lmod_logit <- lm(logit_activity ~ . - activity, data = pyrimidines_clean)
+
+# Plot
+inv_logit <- function(x) exp(x) / (1 + exp(x))
+preds_gaussian <- inv_logit(predict(lmod_logit))
+preds_quasi <- predict(qb_model, type = "response")
+plot(preds_gaussian, preds_quasi, 
+     xlab = "Logit Gaussian Predictions", 
+     ylab = "Quasi-binomial Predictions",
+     main = "Comparison of Predicted Values")
+abline(0, 1, col = "red") # 45-degree line for perfect agreement
+
+coef_gaussian_logit <- coef(lmod_logit)
+coef_quasibinomial <- coef(qb_model)
+data.frame(
+  Gaussian_Logit = coef_gaussian_logit,
+  Quasi_Binomial = coef_quasibinomial,
+  Difference = coef_gaussian_logit - coef_quasibinomial
+)
+```
+
+The coefficients between the two are generally quite close. This is apparent when we see that the predicted values by both models are very similar also. 
+
+## e.
+
+> Fit a Beta regression model. Compare the coefficients of this model with that
+of logit response regression model.
+
+```{r}
+# Most of the code is kind of guesswork bc Prof Song didn't provide example code for this package
+library(mgcv)
+# Get all predictor names (excluding activity and any temporary logit columns)
+predictors <- names(pyrimidines)[!names(pyrimidines) %in% c("activity", "logit_activity")]
+# Construct the formula: "activity ~ p1 + p2 + ... + p26"
+gam_formula <- as.formula(paste("activity ~", paste(predictors, collapse = " + ")))
+bgam <- gam(gam_formula,  family = betar(link="logit"), data = pyrimidines)
+
+beta_gauss <- coef(lmod_logit)[-1]
+beta_gam   <- coef(bgam)[-1]
+data.frame(
+  Predictor = names(beta_gauss),
+  Logit_Gaussian = round(beta_gauss, 4),
+  Beta_GAM = round(beta_gam, 4),
+  Difference = round(beta_gauss - beta_gam, 4)
+)
+```
+
+The coefficients of this model is actually quite a bit different than the logit response model. Some as extreme as 6.177 and over -1000% difference. 
+
+## f. 
+
+>  What property of the response leads to the similarity of the models considered
+thus far in this question?
+
+The similarities is probably because of the response variable. We are largely looking at responses as a ratio that is centered around 0.5 mostly, with rarely any variation below 0.2 (which we remove from our dataset). At the middle of this range, predicted activity level shouldn't be varying too much and with the fact that logit is also relatively linear around this area, we get that all our models (that use logit) do a very similar job as the linear one.   
+
+
+\newpage
+
+
+
+
+# Problem 3
+
+> Simulation study. Let’s now look at the two goodness of fit measures under the binomial
+distribution. For each setting, you will generate N = 1000 data sets, fit each using the correct
+binomial logistic regression model, and save the deviance and Pearson X^2 measures. You will
+then compare the distribution of each measure against the appropriate asymptotic X^2 density.
+You will use the following model in all simulations: y|x ~ Binomial(m, p) where x ~ N(0, 1) and
+logit(p)= 0.35 + x. For each setting and goodness-of-fit measure, create a histogram and overlay the appropriate X^2
+density. Summarize what you find, making sure to address whether the distributions of deviance
+and Pearson X^2 better fit the X^2 density as the number of trials and/or sample size increases.
+
+```{r}
+library(ggplot2)
+library(tidyr)
+library(dplyr)
+
+set.seed(42)
+
+N_sims <- 1000
+settings <- expand.grid(m = c(5, 15, 45), n = c(50, 200, 800))
+results_list <- list()
+
+# Loop through our 9 settings
+for (i in 1:nrow(settings)) {
+  m_val <- settings$m[i]
+  n_val <- settings$n[i]
+  
+  deviance_vals <- numeric(N_sims)
+  pearson_vals <- numeric(N_sims)
+  
+  for (j in 1:N_sims) {
+    # 1. Generate Data
+    x <- rnorm(n_val, 0, 1)
+    logit_p <- 0.35 + x
+    p <- 1 / (1 + exp(-logit_p))
+    y <- rbinom(n_val, size = m_val, prob = p)
+    
+    # 2. Fit Model
+    model <- glm(cbind(y, m_val - y) ~ x, family = binomial)
+    
+    # 3. Save Measures
+    deviance_vals[j] <- deviance(model)
+    pearson_vals[j] <- sum(residuals(model, type = "pearson")^2)
+  }
+  
+  # Store results in a data frame
+  results_list[[i]] <- data.frame(
+    setting = paste0("m=", m_val, ", n=", n_val),
+    m = m_val,
+    n = n_val,
+    Deviance = deviance_vals,
+    Pearson = pearson_vals
+  )
+}
+
+# Combine all results
+all_results <- bind_rows(results_list)
+```
+
+```{r}
+# Reshape for plotting
+all_data <- bind_rows(all_results) %>%
+  pivot_longer(cols = c(Deviance, Pearson), names_to = "Measure", values_to = "Stat")
+
+df_50 <- 50 - 2
+ggplot(filter(all_data, n == 50), aes(x = Stat)) +
+  geom_histogram(aes(y = ..density..), bins = 35, fill = "skyblue", color = "white") +
+  stat_function(fun = dchisq, args = list(df = df_50), color = "red", size = 1) +
+  facet_grid(Measure ~ m, labeller = label_both) +
+  labs(title = "Settings 1-3: n = 50 cases", subtitle = "Red line: Chi-square (df = 48)") +
+  theme_minimal()
+
+df_200 <- 200 - 2
+ggplot(filter(all_data, n == 200), aes(x = Stat)) +
+  geom_histogram(aes(y = ..density..), bins = 35, fill = "steelblue", color = "white") +
+  stat_function(fun = dchisq, args = list(df = df_200), color = "red", size = 1) +
+  facet_grid(Measure ~ m, labeller = label_both) +
+  labs(title = "Settings 4-6: n = 200 cases", subtitle = "Red line: Chi-square (df = 198)") +
+  theme_minimal()
+
+df_800 <- 800 - 2
+ggplot(filter(all_data, n == 800), aes(x = Stat)) +
+  geom_histogram(aes(y = ..density..), bins = 35, fill = "midnightblue", color = "white") +
+  stat_function(fun = dchisq, args = list(df = df_800), color = "red", size = 1) +
+  facet_grid(Measure ~ m, labeller = label_both) +
+  labs(title = "Settings 7-9: n = 800 cases", subtitle = "Red line: Chi-square (df = 798)") +
+  theme_minimal()
+```
+
+It took a really long time to run all those loops. As we increase m, we better fit the Chi-squared distribution. Deviance is much worse at fitting the distribution at low m, almost shifted way off, but seems to do better as m increases. The squared pearson value matches pretty well, although at low m it seems to be a little squeezed or sharp. As we increase n, we see this effect much more. 
+
+
+\newpage
+
+
+# Problem 4
+
+> An experiment analyzes imperfection rates for two processes used to fabricate silicon wafers
+for computer chips. For treatment A applied to 10 wafers, the numbers of imperfections are 8, 7,
+6, 6, 3, 4, 7, 2, 3, 4. Treatment B applied to 10 other wafers has 9, 9, 8, 14, 8, 13, 11, 5, 7, 6
+imperfections. The following model was fit to the data: (in hw)
+
+## a.
+
+> State the model and the assumptions. Denote the expected number of imperfections in treatment A as $\mu_A$, and the expected number of imperfections in treatment B as $\mu_B$. Provide the
+numeric estimate of $\frac{\mu_A}{\mu_B}$ based on the model fit above. Interpret the estimate.
+
+Our model is a Poisson glm model, which usually uses the log link function to relate the mean / expectation of the number of imperfections to a linear model with one intercept and one treatment variable. 
+
+We can represent it as:
+
+$$\ln(\mu_i) = \beta_0 + \beta_1 \cdot x_i$$
+
+For a poisson distribution, we expect the expectation and variance of the response variable to be the same, iid of the wafers, and that the log of the counts can be predicted linearly.
+
+Treatment variable $x_i$ is either 0 or 1 depending on if treatment was provided. Then $\mu_A = e^{\hat{\beta}_0}$ and $\mu_B = e^{\hat{\beta}_0 + \hat{\beta}_1}$. We can then find: 
+
+$$\frac{\mu_B}{\mu_A} = \frac{e^{\hat{\beta}_0 + \hat{\beta}_1}}{e^{\hat{\beta}_0}} = e^{\hat{\beta}_1} = e^{0.5878} \approx 1.80$$
+
+Since it is a ratio, our interpretation is that the expected number of imperfections for treatment B is 1.8 times that of the expected number of imperfections for treatment A.
+
+## b.
+
+> Test H0: $\frac{\mu_A}{\mu_B} =1$  against Ha: $\frac{\mu_A}{\mu_B}\neq 1$ using both the Wald test and the likelihood ratio test.
+
+$$
+\begin{aligned}
+\frac{\mu_A}{\mu_B} &=1 \\
+\ln(\frac{\mu_A}{\mu_B}) &= ln(1) = 0 \\
+\ln(\mu_A) - \ln(\mu_B) &= 0 \\
+\ln(\mu_A) &= \ln(\mu_B)\\
+\beta_0  &= \beta_0 + \beta_1 \cdot x_i \\
+0  &=  \beta_1 
+\end{aligned}
+$$
+
+We want to test if the coefficient for treatment B is 0:
+
+$$H_0: \beta_1 = 0 \quad \text{vs} \quad H_a: \beta_1 \neq 0$$
+
+We first do the Wald test. We use estimate ($\hat{\beta}_1$): $0.5878$ and Standard Error ($SE$): $0.1764$ to find Z score of
+
+$$z = \frac{\hat{\beta}_1 - 0}{SE(\hat{\beta}_1)} = \frac{0.5878}{0.1764} = 3.332$$
+
+The associated p score to that z score is $0.000861$ so at a 95% confidence level, we choose to reject the null hypothesis.
+
+Next, we do the likelihood ratio test. We know "Null deviance: 27.857 on 19 degrees of freedom" and "Residual deviance: 16.268 on 18 degrees of freedom". We find that
+
+$$\text{Null Deviance} - \text{Residual Deviance} = 27.857 - 16.268 = 11.589$$
+
+The degrees of freedom for our test will be 19-18 = 1. We will test on a chi-squared distribution with 1 degree of freedom. We find $P(\chi^2_1 > 11.589) \approx 0.000663$ so we reject the null hypothesis at 95% confidence level. 
+
+Both tests reject the null hypothesis so there is strong evidence that the expected number of imperfections is not the same between treatment A and B. 
+
+## c.
+
+> Construct a 95% confidence interval for $\frac{\mu_A}{\mu_B}$ 
+
+We already did some math above to show that we are actually trying to solve for $\frac{\mu_B}{\mu_A} = \frac{e^{\hat{\beta}_0 + \hat{\beta}_1}}{e^{\hat{\beta}_0}} = e^{\hat{\beta}_1}$. We first find a confidence level for $\beta_1$. We use the info from the problem $\hat{\beta}_1 = 0.5878$ and $SE(\hat{\beta}_1) = 0.1764$. 
+
+We use the Wald method $\hat{\beta}_1 \pm z_{0.025} \times SE(\hat{\beta}_1) = 0.5878 \pm 1.96 \times 0.1764$.
+
+This gives us CI of [0.2421, 0.9335]. We take exp to these values and find [1.274, 2.544] is our 95% confidence interval for $\frac{\mu_A}{\mu_B}$ 
