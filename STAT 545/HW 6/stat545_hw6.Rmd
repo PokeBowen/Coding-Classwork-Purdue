@@ -1,0 +1,185 @@
+---
+title: 'Stat 545: HW 6'
+author: "Bowen Zheng"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Problem 1
+
+> (Rejection sampler for truncated normals) We revisit the problem of truncated normal sampling based on Christian Robert’s 1995 paper. Define the truncated normal pdf with left truncation point c as $\pi(x) = \exp(-x
+2/2)1_{x >c} / \sqrt(2 \pi) \phi(-c)$. Consider the trial density $g(x) = \alpha exp(-\alpha(x-c))1_{x > c}$.
+
+## A.
+
+> First show that g is easy to sample from. Specifically, show that if X ~ Exponential($\alpha$) and Y = X + c then Y ~ g
+
+We start with the pdf of the exponential density with parameter $\alpha$. Since we want to look at x for all of the real number line, we can add an indicator function to our pdf.
+
+$$f_X(x) = \alpha \exp(-\alpha x) \mathbf{1}\{x > 0\}$$
+X also has corresponding CDF of $F_X(x) = 1 - e^{-\alpha x}$.
+
+Since $Y=X + c$, we know y must then be greater than c. Then we can use the inverse CDF method. We start with the CDF of Y, for $y > c$:
+
+$$F_Y(y) = P(Y \leq y) = P(X + c \leq y) = P(X \leq y - c)$$
+We plug in our CDF of X to find
+
+$$F_Y(y) = 1 - \exp(-\alpha(y - c))$$
+
+Now that we have the CDF, we can take the derivative with respect to Y and find the pdf:
+
+$$g(y) = \frac{d}{dy} F_Y(y) = \frac{d}{dy} [1 - \exp(-\alpha(y - c))] = \alpha \exp(-\alpha(y - c))$$
+
+## B.
+
+We have $\pi(x) = \frac{\exp(-x^2/2)\mathbf{1}\{x > c\}}{\sqrt{2\pi}\Phi(-c)}$ and $g(x) = \alpha \exp(-\alpha(x - c))\mathbf{1}\{x > c\}$. We want to show that $\frac{\pi(x)}{g(x)} \leq M(\alpha)$ to show that $r \leq 1$:
+
+$$
+\begin{aligned}
+\frac{\pi(x)}{g(x)} &= \frac{\exp(-x^2/2)}{\sqrt{2\pi}\Phi(-c)} \cdot \frac{1}{\alpha \exp(-\alpha(x - c))} \\
+&=  \frac{1}{\alpha\sqrt{2\pi}\Phi(-c)} \exp\left(-\frac{x^2}{2} + \alpha x - \alpha c\right)
+\end{aligned}
+$$
+Given $\frac{\pi(x)}{g(x)}$, we want to find the $x'$ where the function is maximized. Then, we want to show that at this point, it is still less than $M(\alpha)$. 
+
+We see that $\frac{\pi(x)}{g(x)}$ is maximized when $-\frac{x^2}{2} + \alpha x - \alpha c$ is maximized. We take the derivative with respect to $x$ and find $0 = -x + \alpha \implies x = \alpha$.
+
+Then:
+
+$$
+\text{max}\left[\frac{\pi(x)}{g(x)}\right] = \frac{1}{\alpha\sqrt{2\pi}\Phi(-c)} \exp\left(-\frac{\alpha^2}{2} + \alpha^2 - \alpha c\right) 
+= \frac{1}{\alpha\sqrt{2\pi}\Phi(-c)} \exp\left(\frac{\alpha^2}{2} - \alpha c\right)
+$$
+
+Coincidentally, it matches up with $M(\alpha) = \frac{1}{\alpha\sqrt{2\pi}\Phi(-c)} \exp\left(\frac{\alpha^2}{2} - \alpha c\right)$. Thus, the maximum of $\frac{\pi(x)}{g(x)}$ must be less than or equal to $M$, ie
+
+$$\frac{\pi(x)}{g(x)} \leq M(\alpha) \implies \frac{\pi(x)}{M(\alpha)g(x)} \leq 1 \implies r(x) \leq 1 \quad \forall x > c$$
+
+## C.
+
+We calculate the expectation 
+
+$$
+\begin{aligned}
+E_g[r(X)] &= \int r(x) g(x) dx = \int \frac{\pi(x)}{M(\alpha)g(x)} g(x) dx = \frac{1}{M(\alpha)} \int \pi(x) dx \\
+&= \frac{1}{M(\alpha)} * 1 \\
+&= \frac{1}{M(\alpha)} \\
+&= \alpha\sqrt{2\pi}\Phi(-c) \exp\left(-\frac{\alpha^2}{2} + \alpha c\right)
+\end{aligned}
+$$
+
+To maximize this expectation, we need to find $\alpha$ such that we maximize $f(\alpha) = \alpha \exp\left(-\frac{\alpha^2}{2} + \alpha c\right)$. We take the derivative and find
+
+$$
+\begin{aligned}
+0 = f'(\alpha) & = (1) \exp\left(-\frac{\alpha^2}{2} + \alpha c\right) + \alpha \exp\left(-\frac{\alpha^2}{2} + \alpha c\right) \cdot (-\alpha + c)  \\
+\implies 0 &= \exp\left(-\frac{\alpha^2}{2} + \alpha c\right) * (1 + \alpha (c - \alpha)) \\
+\implies 0& = 1 + \alpha c - \alpha^2 \\
+\implies \alpha &= \frac{-(-c) \pm \sqrt{(-c)^2 - 4(1)(-1)}}{2(1)} =  \frac{c \pm \sqrt{c^2 + 4}}{2}
+\end{aligned}
+$$
+
+Note that we remove the exponential term because it can never equal 0. We know that $\alpha \geq c$, so we lose one of the possible $\alpha$ values and finally find 
+
+$$\alpha^* = \frac{c + \sqrt{c^2 + 4}}{2}$$
+
+## D.
+
+```{r}
+pi_target <- function(x, c) {
+  ifelse(x > c, exp(-x^2/2), 0)
+}
+
+# Cool Rejection Sampler
+sample_optimal_exp <- function(n_samples, c) {
+  alpha_star <- (c + sqrt(c^2 + 4)) / 2
+  M_star <- (1/alpha_star) * exp(alpha_star^2/2 - alpha_star*c)
+  
+  accepted_count <- 0
+  for(i in 1:n_samples) {
+    # Sample Y ~ g(x) by shifting an Exponential(alpha)
+    X_exp <- rexp(1, rate = alpha_star)
+    Y <- X_exp + c
+    
+    # Step B: Rejection test
+    r_y <- pi_target(Y,c) / (M_star * alpha_star * exp(-alpha_star*(Y-c)))
+    if(runif(1) <= r_y) {
+      accepted_count <- accepted_count + 1
+    }
+  }
+  return(accepted_count / n_samples)
+}
+
+# Standard Gaussian Rejection Sampler
+sample_standard_gaussian <- function(n_samples, c) {
+  # Trial density is N(0,1). We accept if Z > c. From notes deck 2.
+  Z <- rnorm(n_samples)
+  accepted <- sum(Z > c)
+  return(accepted / n_samples)
+}
+
+# Comparison for different c values and 10,000 trials
+c_values <- c(0.5, 1.0, 1.5, 2.0)
+n_trials <- 10000
+
+results <- data.frame(c = c_values, Optimal_Exp = NA, Naive_Gaussian = NA)
+
+for(i in 1:length(c_values)) {
+  results$Optimal_Exp[i] <- sample_optimal_exp(n_trials, c_values[i])
+  results$Naive_Gaussian[i] <- sample_standard_gaussian(n_trials, c_values[i])
+}
+
+print(results)
+```
+
+We can see that the optimal method accepts many more samples than the standard method for every c value. 
+
+
+\newpage
+
+# Problem 2
+
+> Consider the following algorithm, consisting of steps A and B: (in hw). Show that X follows a standard normal distribution.
+
+Ok, we begin with the the pdf's of the two independent exponential distributions with $\lambda = 1$. 
+
+We find $f_{Y}(y) = e^{-y}$. Then,
+
+$$f_{Y_1, Y_2}(y_1, y_2) = e^{-y_1} e^{-y_2} = e^{-(y_1 + y_2)}, \quad y_1, y_2 > 0$$
+
+The probability that we accept the sample is the probability of $Y_2 > (1-Y_1)^2 /2$. We can compute this for generate $y_1$:
+
+$$P\left(Y_2 > \frac{(1 - y_1)^2}{2} \mid Y_1 = y_1\right) = \int_{\frac{(1-y_1)^2}{2}}^{\infty} e^{-y_2} dy_2 = e^{-\frac{(1 - y_1)^2}{2}}$$
+
+The probability of $y_1$ and accepting is then:
+
+$$f_{Y_1| \text{accept}}(y_1) \propto e^{-y_1} \cdot e^{-\frac{(1 - y_1)^2}{2}} = C \cdot e^{-y_1^2/2}, \quad y_1 \geq 0$$
+
+We can solve for C, and looking at the integral, we can see that it is half of the standard normal distribution which has half of its density greater than 0, ie:
+
+$$\int_{0}^{\infty} e^{-z^2/2} dz = \frac{\sqrt{2\pi}}{2} = \sqrt{\frac{\pi}{2}}$$
+
+Then we can take this back to our integral and we know:
+
+$$\int_{0}^{\infty} C e^{-y_1^2/2} dy_1 = 1$$
+
+$$C \cdot \sqrt{\frac{\pi}{2}} = 1 \implies C = \sqrt{\frac{2}{\pi}}$$
+
+We see that this is the half normal distribution for $y_1 \geq 0$.
+
+Now in step B, we generate a uniform distribution to send half of our accepted $Y_1$ samples to become negative, ie $y_1 \leq 0$. 
+
+We can compute the pdf for each half:
+
+For $x > 0$: $f_X(x) = 0.5 \cdot \left( \sqrt{\frac{2}{\pi}} e^{-x^2/2} \right) = \frac{1}{\sqrt{2\pi}} e^{-x^2/2}$ and for $x < 0$: $f_X(x) = 0.5 \cdot \left( \sqrt{\frac{2}{\pi}} e^{-(-x)^2/2} \right) = \frac{1}{\sqrt{2\pi}} e^{-x^2/2}$. They are the same, so the distribution across all of $x$ is
+
+$$f_X(x) = \frac{1}{\sqrt{2\pi}} e^{-x^2/2}, \quad -\infty < x < \infty$$
+
+
+```{r}
+
+```
