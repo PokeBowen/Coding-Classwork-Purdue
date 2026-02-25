@@ -236,9 +236,17 @@ plot(preds_gaussian, preds_quasi,
      ylab = "Quasi-binomial Predictions",
      main = "Comparison of Predicted Values")
 abline(0, 1, col = "red") # 45-degree line for perfect agreement
+
+coef_gaussian_logit <- coef(linear_model)
+coef_quasibinomial <- coef(qb_model)
+data.frame(
+  linear_model = coef_gaussian_logit,
+  Quasi_Binomial = coef_quasibinomial,
+  Difference = coef_gaussian_logit - coef_quasibinomial
+)
 ```
 
-The two almost predict exactly the same activity levels. 
+The two almost predict exactly the same activity levels. Generally, the coefficients are not close at all. However, that is probably due to the model needing transformation to align properly with the output / coefficients of the general linear model. 
 
 ## d.
 
