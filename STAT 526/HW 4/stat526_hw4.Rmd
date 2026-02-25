@@ -289,7 +289,7 @@ library(mgcv)
 predictors <- names(pyrimidines)[!names(pyrimidines) %in% c("activity", "logit_activity")]
 # Construct the formula: "activity ~ p1 + p2 + ... + p26"
 gam_formula <- as.formula(paste("activity ~", paste(predictors, collapse = " + ")))
-bgam <- gam(gam_formula,  family = betar(link="logit"), data = pyrimidines)
+bgam <- gam(gam_formula,  family = betar(link="logit"), data = pyrimidines_clean)
 
 beta_gauss <- coef(lmod_logit)[-1]
 beta_gam   <- coef(bgam)[-1]
@@ -301,7 +301,7 @@ data.frame(
 )
 ```
 
-The coefficients of this model is actually quite a bit different than the logit response model. Some as extreme as 6.177 and over -1000% difference. 
+The coefficients of this model is actually quite a bit similar to the logit response model. 
 
 ## f. 
 
