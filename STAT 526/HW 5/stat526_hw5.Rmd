@@ -1,0 +1,415 @@
+---
+title: 'STAT 526: HW 5'
+author: "Bowen Zheng"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(faraway)
+```
+
+# Problem 0
+
+Bowen Zheng
+
+# Problem 1: Faraway Chapter 5 Exercise #2
+
+> The salmonella data was collected in a salmonella reverse mutagenicity assay.
+The predictor is the dose level of quinoline and the response is the numbers of
+revertant colonies of TA98 salmonella observed on each of three replicate plates.
+
+## a.
+
+> Plot the data and comment on the relationship between dose and colonies.
+
+```{r}
+data(salmonella)
+
+plot(colonies ~ dose, data = salmonella, 
+     main = "Salmonella Mutagenicity Assay",
+     xlab = "Dose of Quinoline (microgram/plate)", 
+     ylab = "Number of Revertant Colonies",
+     pch = 19, col = "steelblue")
+```
+
+We see a nonlinear but positive trend that as the dose increases, the number of colonies also increase up to a point where it kind of flatlines or maybe even decreases. The variance seems to be large or maybe there are outliers. Perhaps it is a poisson distribution since we are looking at counts data. 
+
+## b.
+
+>  Compute the mean and variance within each set of observations with the same
+dose. Plot the variance against the mean and comment on what this says about
+overdispersion.
+
+```{r}
+library(tidyr)
+library(dplyr)
+stats <- salmonella %>%
+  group_by(dose) %>%
+  summarise(mean_colonies = mean(colonies), 
+            var_colonies = var(colonies))
+print(stats)
+
+#PLOT
+plot(var_colonies ~ mean_colonies, data = stats, 
+     main = "Variance vs. Mean for Salmonella Data",
+     xlab = "Mean", ylab = "Variance",
+     pch = 19, col = "blue")
+
+# We add 45 degree line
+abline(0, 1, col = "red", lty = 2) 
+
+# Legend 
+legend("topleft", legend = c("Observations", "Poisson Line (Var = Mean)"),
+       col = c("blue", "red"), pch = c(19, NA), lty = c(NA, 2))
+```
+
+The variance is far greater than the mean. The variance seems to get larger as mean increases, so it is likely a function of the mean. If it was a proper Poisson count data, the variance and mean should match. Since this is not the case, we may have overdispersion in many cases except for two, which correspond to dose level 10 and 333. 
+
+## c.
+
+>  Fit a model with dose treated as a six-level factor. Check the deviance to determine whether this model fits the data. Do you think it is possible to find a
+transformation of the dose predictor that results in a Poisson model that does
+fit the data?
+
+```{r}
+salmonella$dose_fac <- as.factor(salmonella$dose)
+mod_factor <- glm(colonies ~ dose_fac, family = poisson, data = salmonella)
+summary(mod_factor)
+```
+
+Check the deviance:
+
+```{r}
+pchisq(33.496, 12, lower.tail=FALSE)
+pchisq(mod_factor$deviance,mod_factor$df.residual,lower.tail=FALSE)
+pchisq( sum(residuals(mod_factor, type="pearson")^2 ), mod_factor$df.residual, lower.tail=FALSE)
+```
+
+The deviance is 33.496 with 12 degrees of freedom. Very low p value so we reject the null hypothesis that the model fits the data. Our model is not a good fit for the data.
+
+We can also use proper goodness of fit tests. Both the residual deviance test and Pearson Chi-squared test give us low p-value, telling us that we reject the null hypothesis and that our model is not a good fit.
+
+It is probably not possible to transform the predictor (dose) to make the model fit better because the main issue is that the variance within each group is much larger than expected. We already have a factor model for each dosage so transforming it only changes the function but the final predicted values are going to be the same because we already are finding the mean for each group individually. The variance within each group will be still the same. 
+
+## d.
+
+> Make a QQ plot of the residuals from the previous model. Interpret the plot.
+
+```{r}
+qqnorm(residuals(mod_factor), main = "Q-Q Plot of Deviance Residuals")
+qqline(residuals(mod_factor), col = "red", lwd = 2)
+```
+
+As we can see in the QQ plot, our deviance residuals are far from the theoretical quantiles at both ends. It seems like heavy tails and the current model is not a good fit.
+
+
+## e.
+
+>  Fit a Poisson model what includes an overdispersion parameter and is quadratic
+in the dose. Can we determine from the deviance of this model whether the fit
+is adequate?
+
+```{r}
+mod_quadANDquasi <- glm(colonies ~ dose + I(dose^2), family = quasipoisson, data = salmonella)
+summary(mod_quadANDquasi)
+```
+
+We cannot use Deviance here to determine if the fit is adequate. This is because we already use an estimate (deviance/X^2) to estimate the dispersion parameter so testing it doesn't make sense with the deviance. Furthermore, quasipoisson may not strictly be distributed in a Chi-squared distribution like a poisson distribution would be. 
+
+## f.
+
+>  Plot the residuals against the fitted values for the previous model. Interpret the plot.
+
+```{r}
+plot(fitted(mod_quadANDquasi), residuals(mod_quadANDquasi, type = "pearson"),
+     main = "Pearson Residuals vs. Fitted Values",
+     xlab = "Fitted Values (Predicted Colonies)",
+     ylab = "Pearson Residuals",
+     pch = 19, col = "darkgreen")
+
+# Add a horizontal line at zero 
+abline(h = 0, lty = 2, col = "red")
+# Add a smooth trend line
+lines(lowess(fitted(mod_quadANDquasi), residuals(mod_quadANDquasi, type = "pearson")), 
+      col = "blue", lwd = 2)
+```
+
+The residuals are generally randomly scattered, but it seems like the fit is still not very good once we get to around 30 predicted colonies. The variance seems bad for this area too but otherwise for the other fittings, seems decent. Overall, this model might still not be best at fitting our data.
+
+## g.
+
+> Plot the fitted mean response of this model on top of the data.
+
+```{r}
+# 1. Plot the original data
+plot(colonies ~ dose, data = salmonella, 
+     pch = 19, col = "grey60",
+     main = "Salmonella Data with Quadratic Fitted Curve",
+     xlab = "Dose of Quinoline", ylab = "Colony Count")
+
+# 2. Predict values using the model
+dose_seq <- seq(0, 1000, length.out = 100) # Generate a sequence of doses for a smooth line
+preds <- predict(mod_quadANDquasi, newdata = data.frame(dose = dose_seq), type = "response")
+
+# 3. Add the fitted line to the plot
+lines(dose_seq, preds, col = "firebrick", lwd = 2)
+
+legend("topright", legend = c("Observed", "Quadratic Fit"),
+       col = c("grey60", "firebrick"), pch = c(19, NA), lty = c(NA, 1))
+```
+
+Pretty cool that it was able to curve through the points.
+
+## h.
+
+> Give the predicted mean response for a dose of 500. Compute a 95% confidence interval.
+
+```{r}
+new_dose <- data.frame(dose = 500)
+pred_link <- predict(mod_quadANDquasi, newdata = new_dose, se.fit = TRUE, type = "link")
+
+lower_link <- pred_link$fit - (1.96 * pred_link$se.fit)
+upper_link <- pred_link$fit + (1.96 * pred_link$se.fit)
+
+exp(pred_link$fit)
+exp(lower_link)
+exp(upper_link)
+```
+
+We use the predict function, but if we were to do this by hand, we would use the delta method to compute the standard error. Then we would continue with the same calculations. 
+
+We predict 46.66 colonies with our confidence interval being (31.14967, 69.90377).
+
+## i.
+
+> At what dose does the maximum predicted response occur?
+
+Ok, we can calculate this with the data from our quasipoisson model that uses the log link.
+
+We know:
+
+$$\log(\mu) = \beta_0 + \beta_1(\text{dose}) + \beta_2(\text{dose}^2)$$
+
+We can take the derivative with respect to dose and set to 0 to find the maximum point:
+
+$$\frac{d}{d(\text{dose})} (\beta_1 \cdot \text{dose} + \beta_2 \cdot \text{dose}^2) = \beta_1 + 2\beta_2 \cdot \text{dose} = 0$$
+
+Which leads to:
+
+$$\text{Dose}_{max} = -\frac{\beta_1}{2\beta_2}$$
+
+Now use our model coefficients from R in step (e).
+
+```{r}
+# Extract coefficients
+beta <- coef(mod_quadANDquasi)
+
+# Calculate the dose for maximum response
+-beta["dose"] / (2 * beta["I(dose^2)"])
+```
+
+For the most colonies, dosage should be 546.4212 micrograms per plate. 
+
+\newpage
+
+# Problem 2
+
+> A group of researchers fit the following model to data on the number of falls in young
+adults, their activity level (LTEQ), sex, and number of medications (0,1,2,> 2).
+
+## a.
+
+>  The variable days represents the number of days each subject was followed. Based on this
+information, explain the use of the offset term log(days) in the model.
+
+We can do a quick calculation:
+
+$$\log(\mu) = \beta_0 + \beta_1 X_1 + \dots + \text{offset(days)}$$
+which we move the offset over and find:
+
+$$\log(\frac{\mu}{days}) = \beta_0 + \beta_1 X_1 + \dots$$
+
+This is the rates model. The use of the offset term is to properly represent our rate model.
+
+## b.
+
+> For this model, sex = 1 refers to a male. What does this model say about the expected
+number of falls in males relative to the number of falls in females? If possible, construct a
+95% confidence interval to support your conclusions.
+
+This correlates to the factor(sex)1 coefficient of 0.421925. We can calculate that males chances of falling is $e^{0.421925} \approx 1.525$ times that of females, or roughly 52.5% more falls. We can constuct a confidence interval assuming normal distribution and using the standard error and taking it to the e power: $[e^{0.1335}, e^{0.7104}] \approx [1.14, 2.03]$.
+
+Since our 95% confidence interval does not include 1, we reject the null hypothesis and accept that males fall at a higher rate than females do.
+
+## c.
+
+> Can the residual deviance be used to assess goodness of fit? Explain your answer.
+
+Yes it should be possible. Under the null hypothesis that the model is correctly specified, we assume it has a chi-squared distribution with 221 degrees of freedom.
+
+Our residual deviance is 291.49 on 221 degrees of freedom.
+
+```{r}
+pchisq(291.49, 221, lower.tail=FALSE)
+pchisq(300.15-291.49,224-221,lower.tail=FALSE)
+```
+
+We can see that the p value is very small which suggests the model does not fit the data well. 
+
+## d.
+
+> The following table summarizes the observed number of falls and the expected number of falls
+under the model that just includes sex as a predictor. Does the model fit the data? Explain
+your answer.
+
+
+Let us perform the Pearson Chi-squared goodness of fit test.
+
+We have observed values and expected values for each category:
+
+$$\chi^2 = \sum \frac{(O_i - E_i)^2}{E_i}$$
+
+```{r}
+1.171 +	3.065 + 0.067 + 0.132 + 1.729
+```
+
+The degree of freedom is 5-1=4, so with these values, we can perform the test.
+
+```{r}
+pchisq(6.164, 4, lower.tail=FALSE)
+```
+
+We fail to reject the null hypothesis at a 5% level based on the data we have. We accept the model fits the data. 
+
+
+## e.
+
+Since we have so many more 0 and less of 1 than our predicted models, it is likely that maybe the model is zero-inflated. Otherwise perhaps we have a overdispersion issue. Either way, we should switch models and test if they are better. 
+
+
+\newpage
+
+
+# Problem 3
+
+> The following table contains the counts of leukemia in five counties of California from 1996
+to 2000 as well as the county population in 2000...
+Assume the count Ni with observed value ni follows a Poisson distribution with parameter $\lambda_i$
+times the county population $x_i, i = 1, . . . , 5$. Derive the Pearson and deviance goodness-of-fit
+tests for the null hypothesis that the $\lambda_i$ are all the same.
+
+Ok then we assume for the null hypothesis that all the $\lambda_i$ are all the same.
+
+We can make a simple estimation of $\lambda_i$ because we know $E[N_i] = \lambda x_i$ then:
+
+$$\hat{\lambda} = \frac{\sum n_i}{\sum x_i} = \frac{22 + 146 + 226 + 47 + 52}{247289 + 948816 + 1443741 + 776733 + 70716} = \frac{493}{3487295} \approx 0.00014137$$
+
+Ok we have our estimated $\lambda$ value.
+
+## Pearson Goodness-of-Fit Test
+
+$$X^2 = \sum_{i=1}^{k} \frac{(n_i - \hat{\mu}_i)^2}{\hat{\mu}_i}$$
+Marin: $(22 - 34.96)^2 / 34.96 = 4.80$
+
+Contra Costa: $(146 - 134.13)^2 / 134.13 = 1.05$
+
+Alameda: $(226 - 204.10)^2 / 204.10 = 2.35$
+
+San Francisco: $(47 - 109.81)^2 / 109.81 = 35.93$
+
+San Mateo: $(52 - 10.00)^2 / 10.00 = 176.40$
+
+Total Pearson $X^2 \approx 220$, follow a $\chi^2$ distribution with $df = k - 1 = 4$ degrees of freedom.
+
+```{r}
+pchisq(220, 4, lower.tail=FALSE)
+```
+
+p-value is lower than 0.05 so we reject the null hypothesis.
+
+## Deviance Goodness-of-Fit Test
+
+We have Poisson deviance from chapter 5.1
+
+$$D = 2 \sum_{i=1}^{5} \left[ n_i \ln\left(\frac{n_i}{\hat{\mu}_i}\right) - (n_i - \hat{\mu}_i) \right]$$
+
+Since $\sum n_i = \sum \hat{\mu}_i$ in this model, the term $\sum (n_i - \hat{\mu}_i)$ sums to zero, and the formula simplifies to $D = 2 \sum n_i \ln(n_i / \hat{\mu}_i)$
+
+Marin: $2 \times 22 \times \ln(22 / 34.96) \approx -20.38$
+
+Contra Costa: $2 \times 146 \times \ln(146 / 134.13) \approx 24.76$
+
+Alameda: $2 \times 226 \times \ln(226 / 204.10) \approx 46.07$
+
+San Francisco: $2 \times 47 \times \ln(47 / 109.81) \approx -79.77$
+
+San Mateo: $2 \times 52 \times \ln(52 / 10.00) \approx 171.46$
+
+Total Deviance: $D \approx 142.14$ follow a $\chi^2$ distribution with $df = k - 1 = 4$ degrees of freedom.
+
+```{r}
+pchisq(142.14, 4, lower.tail=FALSE)
+```
+
+p-value is lower than 0.05 so we reject the null hypothesis.
+
+
+
+In both tests, we reject the null hypothesis. We have evidence that shows that the leukemia rates are not at uniform $\lambda$ across the five counties.
+
+
+\newpage
+
+# Problem 4: Faraway Chapter 5 Exercise #6
+
+> Components are attached to an electronic circuit card assembly by a wavesoldering process. The soldering process involves baking and preheating the circuit card and then passing it through a solder wave by conveyor. Defects arise
+during the process. The design is $2^{7-3}$ with three replicates. The data is presented
+in the dataset wavesolder. You can assume that the replicates are independent.
+
+## a.
+
+>  Make plots of the number of defects against each of the predictors. Comment
+on the relationships you see. Check graphically that there is no trend in the
+replicates.
+
+## b.
+
+> Compute the mean and variance within each group of three replicates. Plot the
+variance against the mean. Comment on the relationship and the viability of a
+Poisson model for the response. Repeat the plot, but use a log scale on both
+axes. Does this plot reveal anything new?
+
+## c.
+
+>  Fit a Poisson model for the number of defects with all predictors included as
+main effects. What does the deviance of this model say about its fit?
+
+
+## d.
+
+> Make a plot of the residuals against the fitted values and comment on what is
+seen. Make a QQ plot of the residuals. Are there any outliers?
+
+
+## e.
+
+> Refit the Poisson model but excluding the case with the largest residual. Compute the deviance. Does this model now fit the data?
+
+## f.
+
+> Fit a quasi-poisson model with same model formula and excluded case. Estimate the value of the dispersion parameter. Check the model summary. Now
+use an F-test to the significance of each of the predictors. Compare the two sets
+of tests—one from the model summary and one from the F-test. Are they similar? Report on what predictors are significant and which level of the significant
+factors will lead to higher defects.
+
+## g.
+
+> Check the diagnostics again as in (d)
+
+
+```{r}
+
+```
+
