@@ -374,6 +374,32 @@ in the dataset wavesolder. You can assume that the replicates are independent.
 on the relationships you see. Check graphically that there is no trend in the
 replicates.
 
+```{r}
+data(wavesolder)
+
+predictors <- c("prebake", "flux", "speed", "preheat", "cooling", "agitator", "temp")
+par(mfrow = c(2, 4))
+for(p in predictors) {
+  # Plotting all three replicates (y1, y2, y3) against the factor
+  plot(as.factor(wavesolder[[p]]), wavesolder$y1, xlab=p, ylab="Defects", main=paste("Defects vs", p), col="red", pch=1)
+  points(as.factor(wavesolder[[p]]), wavesolder$y2, col="blue", pch=2)
+  points(as.factor(wavesolder[[p]]), wavesolder$y3, col="darkgreen", pch=3)
+}
+
+par(mfrow = c(1, 1))
+boxplot(wavesolder$y1, wavesolder$y2, wavesolder$y3, 
+        names=c("Replicate 1", "Replicate 2", "Replicate 3"),
+        main="Comparison of Replicate Distributions",
+        col=c("red", "blue", "darkgreen"))
+```
+
+Speed and temperature have largest difference between the two states of the predictor. 1 speed and 2 temp seem to have low variance, perhaps because of some interaction.
+
+The replicates comparison is good, there should not be any trends. Although, replicate 2 has a couple outliers. 
+
+
+
+
 ## b.
 
 > Compute the mean and variance within each group of three replicates. Plot the
@@ -381,10 +407,60 @@ variance against the mean. Comment on the relationship and the viability of a
 Poisson model for the response. Repeat the plot, but use a log scale on both
 axes. Does this plot reveal anything new?
 
+
+```{r}
+row_means <- rowMeans(wavesolder[, c("y1", "y2", "y3")])
+row_vars  <- apply(wavesolder[, c("y1", "y2", "y3")], 1, var)
+
+par(mfrow = c(1, 2))
+
+# 1. Plot Variance against Mean 
+plot(row_means, row_vars, 
+     pch = 16, col = "darkblue",
+     xlab = "Mean Number of Defects", 
+     ylab = "Variance of Defects",
+     main = "Variance vs. Mean")
+abline(0, 1, lty = 2, col = "red") # Reference line for Poisson (Var = Mean)
+
+# 2. Plot Variance against Mean (Log-Log Scale)
+plot(row_means, row_vars, 
+     log = "xy", pch = 16, col = "darkred",
+     xlab = "Log(Mean)", 
+     ylab = "Log(Variance)",
+     main = "Variance vs. Mean (Log-Log)")
+abline(0, 1, lty = 2, col = "red") # Reference line for Poisson (Var = Mean)
+```
+
+In poisson distribution, we expect variance to equal mean (denoted by dotted red line in graphs). This seems to be the case here except for some outliers. The log-log plot shows similar results. However, it could be noted that the data may be slightly more far from the line, so maybe it suffers from overdispersion.
+
+
 ## c.
 
 >  Fit a Poisson model for the number of defects with all predictors included as
 main effects. What does the deviance of this model say about its fit?
+
+We fix the data so that each replicate gets its own row.
+
+```{r}
+wavesolder_long <- data.frame(
+  y = c(wavesolder$y1, wavesolder$y2, wavesolder$y3),
+  prebake = rep(wavesolder$prebake, 3),
+  flux = rep(wavesolder$flux, 3),
+  speed = rep(wavesolder$speed, 3),
+  preheat = rep(wavesolder$preheat, 3),
+  cooling = rep(wavesolder$cooling, 3),
+  agitator = rep(wavesolder$agitator, 3),
+  temp = rep(wavesolder$temp, 3)
+)
+
+model_poisson <- glm(y ~ prebake + flux + speed + preheat + cooling + agitator + temp, family = poisson, data = wavesolder_long)
+summary(model_poisson)
+```
+```{r}
+pchisq(491.78, 40, lower.tail=FALSE)
+```
+
+The Deviance Goodness of fit test gives us very small p value which means we reject the null hypothesis and the model fits the data poorly.
 
 
 ## d.
@@ -392,17 +468,68 @@ main effects. What does the deviance of this model say about its fit?
 > Make a plot of the residuals against the fitted values and comment on what is
 seen. Make a QQ plot of the residuals. Are there any outliers?
 
+```{r}
+# 1. Plot Residuals vs. Fitted Values
+resids <- residuals(model_poisson, type = "deviance")
+fitted_vals <- predict(model_poisson, type = "response")
+
+par(mfrow = c(1, 2))
+
+plot(fitted_vals, resids, 
+     xlab = "Fitted Values (Predicted Mean)", 
+     ylab = "Deviance Residuals",
+     main = "Residuals vs. Fitted",
+     pch = 16, col = "darkcyan")
+abline(h = 0, lty = 2, col = "red")
+
+# 2. Normal Q-Q Plot of Residuals
+qqnorm(resids, main = "Q-Q Plot of Deviance Residuals")
+qqline(resids, col = "red")
+```
+
+The deviance residuals vs fitted values plot seems to show some sort of U shape with one really high residual. However, the deviance is incredibly high, going from -10 to over 10, which means the variance is quite high and likely not normally distributed. There is probably overdispersion. On the QQ plot we see one outlier right at the very end. 
+
+
 
 ## e.
 
 > Refit the Poisson model but excluding the case with the largest residual. Compute the deviance. Does this model now fit the data?
 
+Get max residual, remove it, and make new model.
+```{r}
+resids <- residuals(model_poisson, type = "deviance")
+outlier_index <- which.max(abs(resids))
+
+wavesolder_reduced <- wavesolder_long[-outlier_index, ]
+model_poisson_reduced <- glm(y ~ prebake + flux + speed + preheat + cooling + agitator + temp, family = poisson, data = wavesolder_reduced)
+summary(model_poisson_reduced)
+
+pchisq(model_poisson_reduced$deviance, model_poisson_reduced$df.residual, lower.tail = FALSE)
+```
+
+We use deviance goodness of fit test and find small p-value, less than 0.05. This means we reject the null hypothesis and accept that the model does not fit the data. We do see quite a large decrease in residual deviance so at least that is a good sign but this model is not good. 
+
+
 ## f.
 
-> Fit a quasi-poisson model with same model formula and excluded case. Estimate the value of the dispersion parameter. Check the model summary. Now
-use an F-test to the significance of each of the predictors. Compare the two sets
-of tests—one from the model summary and one from the F-test. Are they similar? Report on what predictors are significant and which level of the significant
-factors will lead to higher defects.
+> Fit a quasi-poisson model with same model formula and excluded case. Estimate the value of the dispersion parameter. Check the model summary. Now use an F-test to the significance of each of the predictors. Compare the two sets
+of tests—one from the model summary and one from the F-test. Are they similar? Report on what predictors are significant and which level of the significant factors will lead to higher defects.
+
+```{r}
+model_quasi <- glm(y ~ prebake + flux + speed + preheat + cooling + agitator + temp, family = quasipoisson, data = wavesolder_reduced)
+summary(model_quasi)
+
+anova(model_quasi, test = "F")
+```
+
+Dispersion parameter is 6.641214.
+
+We see that prebake, flux, speed, cooling, and temp are significant by the t test.
+We see that prebake, flux, speed, cooling, and temp are significant by the F test.
+They seem to coincide.
+
+We check the coefficients, positive coefficeint means that level 2 increases the expected number of defects. We can use this to determine which level to choose for higher defects. We find for highest defects: (prebake 2, flux 1, speed 2, preheat 2, cooling 1, agitator 2, temp 1).
+
 
 ## g.
 
@@ -410,6 +537,103 @@ factors will lead to higher defects.
 
 
 ```{r}
+resids_q <- residuals(model_quasi, type = "deviance")
+fitted_q <- predict(model_quasi, type = "response")
 
+par(mfrow = c(1, 2))
+
+# Residuals vs. Fitted Plot
+plot(fitted_q, resids_q, 
+     xlab = "Fitted Values (Predicted Mean)", 
+     ylab = "Deviance Residuals",
+     main = "Quasi-Poisson: Resids vs Fitted",
+     pch = 16, col = "darkgreen")
+abline(h = 0, lty = 2, col = "red")
+
+# Q-Q Plot of Deviance Residuals
+qqnorm(resids_q, main = "Quasi-Poisson: Q-Q Plot")
+qqline(resids_q, col = "red")
 ```
+
+The residuals are pretty random around 0 and variance doesnt seem to increase as fitted values increase. However, we may have the opposite trend of variance decreasing as fitted increases. Overall, the variance is still too large and we probably still have issues in fit (as we found in step f). The QQ plot seems even worse now as even less points are on the line. However, there is not the strong outlier anymore, which is good.
+
+
+
+
+\newpage
+
+# Problem 5
+
+> At the wholesale level, lettuce is sometimes graded into three categories: too small to be
+sold, large enough to be sold at full price, and intermediate. When the lettuce is placed into the
+intermediate size class it is put together with another of the same type and they are sold as a pair
+at full price. A plant breeder wants to investigate whether a new lettuce variety is worth more
+at the wholesale level than an old variety. He randomly collected 100 heads from each of these
+varieties and, counted the number of heads of lettuce in the following table:
+Based on these data, test to see if the two varieties have the same size class distribution. Also test
+whether there is a difference in the profit margins of the two types (assuming the cost to produce
+each head is the same and the two types are sold at the same price).
+
+First, let us make a model.
+
+```{r}
+# Data / simple way to do chi square test
+lettuce_data <- matrix(c(11, 25, 64, 8, 10, 82), nrow = 2, byrow = TRUE)
+rownames(lettuce_data) <- c("Old", "New")
+colnames(lettuce_data) <- c("Too Small", "Intermediate", "Large Enough")
+
+chisq.test(lettuce_data)
+
+# Dataframe method Qifan uses
+lettuce_df <- data.frame(
+  Variety = c(rep("Old", 3), rep("New", 3)),
+  SizeClass = rep(c("TooSmall", "Intermediate", "LargeEnough"), 2),
+  Count = c(11, 25, 64, 8, 10, 82)  
+)
+obsval <- xtabs(Count ~ Variety + SizeClass, data = lettuce_df)
+row_totals <- rowSums(obsval)
+col_totals <- colSums(obsval)
+grand_total <- sum(obsval)
+print(obsval)
+fitval <- outer(row_totals, col_totals) / grand_total
+print(fitval)
+
+chi_sq_stat <- sum((obsval - fitval)^2 / fitval)
+df_val <- (nrow(obsval) - 1) * (ncol(obsval) - 1)
+p_val <- pchisq(chi_sq_stat, df = df_val, lower.tail = FALSE)
+print(p_val)
+```
+
+Cool both methods line up. 
+
+We use the test for independence using Pearson X^2 test for checking whether the two varieties have the same size class distribution (ie the probabilities of being in each category is independent of size). Our p value is less than 0.05 so we reject the null hypothesis that the reduced model of independence fits the data and accept the alternative hypothesis where there is no independence between the row and column variables. 
+
+Next is profit margins. Too small is not sold. Intermediate is worth half, because we must pair them. Large enough can be sold for full price. We can use a simple two sample t-test for testing the significance of whether the profits are different.
+
+```{r}
+old_revenue <- (64 * 1) + (25 * 0.5) + (11 * 0)
+new_revenue <- (82 * 1) + (10 * 0.5) + (8 * 0)
+old_vals <- c(rep(1, 64), rep(0.5, 25), rep(0, 11))
+new_vals <- c(rep(1, 82), rep(0.5, 10), rep(0, 8))
+print(old_revenue)
+print(new_revenue)
+
+# Perform t-test
+t.test(old_vals, new_vals)
+```
+
+The p-value is 0.02221 < 0.05. We can reject the null hypothesis that the means are the same. We accept the alternative hypothesis that the true difference in means between the groups is not equal to 0 and that there is a statistically significant increase in profit margin for the new variety compared to old type of lettuce.
+
+
+
+
+
+
+
+
+
+
+
+
+
 
