@@ -1,0 +1,215 @@
+---
+title: 'STAT 526: HW 6'
+author: "Bowen Zheng"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Problem 0
+
+Bowen Zheng
+
+# Problem 1
+
+> Researchers study the effect of seat belt use on the severity of traffic accidents. The counts
+of events are summarized below.
+
+## a.
+
+> Describe the sampling process that would result in this being a retrospective study.
+
+Researchers collect data on individuals who were in traffic accidents and then we label them with fatal vs non-fatal and seat belt and no seat belt. 
+
+## b.
+
+> Describe the sampling process that would result in a this being a prospective study.
+
+We select two groups before accidents occur. After accidents, we record fatal vs non-fatal and seat belt and no seat belt. 
+
+## c.
+
+### For odds ratio (OR):
+
+$$\widehat{OR} = \frac{n_{11} \times n_{22}}{n_{12} \times n_{21}} = \frac{1061 \times 421,368}{501 \times 165,227} \approx 5.401$$
+
+$$SE(\ln \widehat{OR}) = \sqrt{\frac{1}{n_{11}} + \frac{1}{n_{12}} + \frac{1}{n_{21}} + \frac{1}{n_{22}}} = \sqrt{\frac{1}{1061} + \frac{1}{501} + \frac{1}{165,227} + \frac{1}{421,368}} \approx 0.0543$$
+The CI for $\ln(OR)=\ln(5.401) = 1.687$ is $1.687 \pm 1.96(0.0543) = [1.581, 1.793]$.
+Exponentiating the bounds gives the 95% CI for OR: [4.86, 6.01].
+
+With 95% confidence, the the odds of a fatal accident for those not wearing a seat belt are between 4.86 and 6.01 times higher than the odds for those wearing a seat belt. 
+
+
+### Difference in Proportions
+
+$\hat{p}_1 = \frac{1061}{1061+501} \approx 0.6793$ and $\hat{p}_2 = \frac{165,227}{165,227+421,368} \approx 0.2817$ so we can find:
+
+$$\text{Difference} = \hat{p}_1 - \hat{p}_2 = 0.6793 - 0.2817 = 0.3976$$
+
+Now for SE (of binomial):
+
+$$SE = \sqrt{\frac{\hat{p}_1(1-\hat{p}_1)}{n_1} + \frac{\hat{p}_2(1-\hat{p}_2)}{n_2}} = \sqrt{\frac{0.6793(0.3207)}{1562} + \frac{0.2817(0.7183)}{586,595}} \approx 0.0118$$
+
+Finally, all together:  95% CI is $0.3976 \pm 1.96(0.0118) = [0.374, 0.421]$
+
+Now we are 95% confident that the probability of having a fatal accident is increased by between 37.4 and 42.1 percent higher for individuals not wearing their seat belts versus those who were wearing their seat belts. 
+
+# Problem 2 - Faraway Chapter 6 Exercise #4
+
+> The dataset death contains data on murder cases in Florida in 1977. The data is
+cross-classified by the race (black or white) of the victim, of the defendant and
+whether the death penalty was given.
+
+## a.)
+
+> Consider the frequency with which the death penalty is applied to black and white defendants, both marginally and conditionally, with respect to the race of the victim. Is this an example of Simpson’s paradox? Are the observed differences in the frequency of application of the death penalty statistically significant?
+
+```{r}
+library(faraway)
+data(death)
+print(death)
+```
+
+Calculate frequencies:
+
+Marginal (just looking without race)
+```{r}
+marginal_df <- xtabs(y ~ defend + penalty, data=death)
+prop.table(marginal_df, 1)
+# Simple Chi-square test
+chisq.test(marginal_df)
+```
+Marginally, white gets more death penalty. This is not statistically significant.
+
+
+Now conditioned on victim race:
+
+```{r}
+ftable(xtabs(y ~ victim + defend + penalty, data=death))
+
+conditional_tab <- xtabs(y ~ defend + penalty + victim, data=death)
+prop.table(conditional_tab, c(1, 3))
+```
+
+For both races, black people are more likely to get death penalty. 
+
+YES, this is example of Simpson's paradox. The paradox is that the trend appears when only looking at it marginally, but when we look at the conditional trend, black defendants have higher death penalty rate. 
+
+
+Ok let us look at statistical significance
+
+```{r}
+cond_white_victim <- conditional_tab[,, "w"]
+cond_black_victim <- conditional_tab[,, "b"]
+
+print("Conditional Table (Victim = White):")
+print(cond_white_victim)
+print("Proportions (Victim = White):")
+print(prop.table(cond_white_victim, 1))
+
+print("Conditional Table (Victim = Black):")
+print(cond_black_victim)
+print("Proportions (Victim = Black):")
+print(prop.table(cond_black_victim, 1))
+
+# Chi-squared tests for Conditional Independence
+chisq.test(cond_white_victim, correct = FALSE)
+chisq.test(cond_black_victim, correct = FALSE)
+
+# Cochran-Mantel-Haenszel test (overall conditional significance, doesnt really provide much) 
+mantelhaen.test(conditional_tab)
+```
+
+Our two chi-square tests for conditional independence show no significant difference in the application of death penalty between races for the case the victim is white and for the case where the victim is black. 
+
+## b.)
+
+>  Determine the most appropriate dependence model between the variables.
+
+We have 3 binary variables, victim race, defendant race, and whether there is death penalty. We do see a conditional relationship based on whether the defendant is white or black have different death penalties rates conditional on victim. More formally, whether penalty is conditionally independent of defendant's race given the victim's race is what we want to test for. 
+
+```{r}
+# Model 1: Only Defendant's Race (Marginal)
+model_marg <- glm(penalty ~ defend, family = binomial, weights = y, data = death)
+summary(model_marg)
+# Model 2: Adding Victim's Race (Condition on defendant and victim)
+model_adj <- glm(penalty ~ defend + victim, family = binomial, weights = y, data = death)
+summary(model_adj)
+# Model 3: Adding an Interaction Term (Interaction between defendant and victim)
+model_int <- glm(penalty ~ defend * victim, family = binomial, weights = y, data = death)
+summary(model_int)
+# Test ANOVA for nested models
+anova(model_adj, model_int, test = "Chisq")
+```
+
+The logistic regression models seem to say only victim is important in determining rate of penalty. Perhaps we can look into Poisson GLM for counts independence instead:
+
+```{r}
+# Conditional model victim on penalty and victim on defendant
+model_cond_indep <- glm(y ~ victim*penalty + victim*defend, family = poisson, data = death)
+summary(model_cond_indep)
+# Saturated model
+model_all_2way <- glm(y ~ (victim + penalty + defend)^2, family = poisson, data = death)
+summary(model_all_2way)
+# Compare the two models
+anova(model_cond_indep, model_all_2way, test = "Chisq")
+```
+
+The model where defendant and penalty are conditional on victim seems to perform best. Good residual deviance values, matching chi-squared, and also statistically the saturated model is not a significant improvement. Things look good here. In fact, from the saturated model coefficients, it seems that the penalty:defender interaction is not significant.  
+
+Our final and most appropriate model is the poisson glm model that models the conditional independence using coefficients for victim, defendant, penalty, victim:defendant and victim:penalty. 
+
+## c.)
+
+>  Fit a binomial regression with death penalty as the response and show the relationship to your model in the previous question.
+
+Good thing we already did all the work. We can paste it here again:
+
+
+```{r}
+# Model 1: Only Defendant's Race (Marginal)
+model_marg <- glm(penalty ~ defend, family = binomial, weights = y, data = death)
+summary(model_marg)
+# Model 2: Adding Victim's Race (Condition on defendant and victim)
+model_adj <- glm(penalty ~ defend + victim, family = binomial, weights = y, data = death)
+summary(model_adj)
+# Model 3: Adding an Interaction Term (Interaction between defendant and victim)
+model_int <- glm(penalty ~ victim*defend, family = binomial, weights = y, data = death)
+summary(model_int)
+# Test ANOVA for nested models
+anova(model_adj, model_int, test = "Chisq")
+```
+
+We set up 3 binomial models with penalty as our binomial response. Marginal model of defendant alone is not significant as a coefficient, which makes sense since we think it is conditional independence. We see that in the more complex models, whether the victim is white or not is significant. Although, victim:defendant does not seem to be the case. 
+
+To see the relationship, we are looking at the last model model_int. It tells us that the death penalty rate conditioned on victim is independent (insignificant p-value) from defendant on victim. This is the conditional independence model that we saw in the Poisson GLM models. 
+
+# Problem 3
+
+> A recent poll looked at the relationships between three categorical variables (State (1-5),
+county type (urban/rural), and whether the respondent supports Trump’s reelection (yes/no)).
+
+## a.)
+
+> Test the independence of county type and Trump support, unconditionally on state, by
+means of an odds ratio.
+
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+#
+
+```{r}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
