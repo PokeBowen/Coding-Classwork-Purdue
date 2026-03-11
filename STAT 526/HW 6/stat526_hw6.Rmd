@@ -57,6 +57,10 @@ Finally, all together:  95% CI is $0.3976 \pm 1.96(0.0118) = [0.374, 0.421]$
 
 Now we are 95% confident that the probability of having a fatal accident is increased by between 37.4 and 42.1 percent higher for individuals not wearing their seat belts versus those who were wearing their seat belts. 
 
+
+\newpage
+
+
 # Problem 2 - Faraway Chapter 6 Exercise #4
 
 > The dataset death contains data on murder cases in Florida in 1977. The data is
@@ -187,6 +191,10 @@ We set up 3 binomial models with penalty as our binomial response. Marginal mode
 
 To see the relationship, we are looking at the last model model_int. It tells us that the death penalty rate conditioned on victim is independent (insignificant p-value) from defendant on victim. This is the conditional independence model that we saw in the Poisson GLM models. 
 
+
+\newpage
+
+
 # Problem 3
 
 > A recent poll looked at the relationships between three categorical variables (State (1-5),
@@ -197,19 +205,282 @@ county type (urban/rural), and whether the respondent supports Trump’s reelect
 > Test the independence of county type and Trump support, unconditionally on state, by
 means of an odds ratio.
 
+Ok we can first ignore state then and compute the odds ratio.
 
 ```{r}
+poll_data <- data.frame(
+  State = factor(rep(1:5, each = 4)),
+  County = factor(rep(c("Urban", "Rural", "Urban", "Rural"), 5)),
+  Support = factor(rep(c("Yes", "Yes", "No", "No"), 5)),
+  Freq = c(
+    53, 17, 115, 15, # State 1
+    71, 33, 75, 21,  # State 2
+    58, 40, 81, 21,  # State 3
+    34, 34, 111, 21, # State 4
+    71, 42, 75, 12   # State 5
+  )
+)
 
+marginal_table <- xtabs(Freq ~ County + Support, data = poll_data)
+print(marginal_table)
+
+odds_ratio <- (marginal_table["Urban", "Yes"] * marginal_table["Rural", "No"]) / 
+               (marginal_table["Urban", "No"] * marginal_table["Rural", "Yes"])
+print(odds_ratio)
+chisq.test(marginal_table, correct = FALSE)
+```
+
+Or we can calculate by hand but then use a calculator:
+
+$$OR = \frac{n_{11}n_{22}}{n_{12}n_{21}} = \frac{287 \times 90}{457 \times 166} \approx \frac{25830}{75862} \approx 0.3405$$
+
+```{r}
+log_theta <- log(odds_ratio)
+se_log_theta <- sqrt(sum(1/marginal_table))
+z_critical <- qnorm(0.975) # 1.96
+
+z_stat <- log_theta / se_log_theta
+p_val <- 2 * (1 - pnorm(abs(z_stat)))
+print(p_val)
+```
+
+Test for independence using odds ratio assumes that log of the odds ratio is Normally distributed. Seeing that our p value is so low, less than $\alpha=0.05$, we reject the null hypothesis. We believe that X and Y are not independent.
+
+## b.)
+
+> Suppose instead that you want to determine whether the relationship between county type
+and Trump support is independent of state, i.e., joint independence. Write the log-linear
+model that would be used to assess this.
+
+We want to see if they are independent of state. Our model would be:
+
+$$\ln(\mu_{ijk}) = \lambda + \lambda_i^S + \lambda_j^C + \lambda_k^T + \lambda_{jk}^{CT}$$
+
+Where state (S), county (C), and Trump support (T).
+
+```{r}
+model_joint <- glm(Freq ~ County * Support + State,  family = poisson(), data = poll_data)
+# Check the Goodness-of-Fit
+summary(model_joint)
+
+pchisq(51.935, 12, lower.tail=FALSE)
+```
+
+Using residual deviance goodness of fit test, we see that we get a low p-value, less than 0.05. This implies that we reject our null hypothesis that the model fits the data. This means our assumption of "county type and Trump support is independent of state" gives us a model that does not fit the data, implying that this is likely not the correct relationship.
+
+## c.)
+
+> What is the predicted count under the model in part b) for State 1, urban county, and supports reelection?
+
+
+```{r}
+poll_data$predicted_counts <- fitted(model_joint)
+print(poll_data)
+```
+
+We see that 57.4 is the predicted count. 
+
+## d.)
+
+> The following output describes the best fitting log-linear model among all those possible. Name this relationship model and describe what this estimated model tells you in regards to
+the odds ratio between county type and Trump support across states.
+
+This model is a log linear model that includes all two way interactions but no three way interaction. This is called the uniform association or homogeneous association model. 
+
+We have coefficient estimate $-1.072306$ for supportYes:countyUrban. The model is log scale, so the log odds ratio is -1.072 and we convert to odds ratio $$\hat{\theta}_{TC} = e^{-1.072306} \approx 0.342$$. No state interaction so, for every state, the odds of urban resident supporting reelection of Trump is 0.342 times that of the odds of rural resident supporting reelection. 
+
+## e.)
+
+> Based on the model in d), write out the best fitting logistic model for Trump support as the
+response variable and the other two variables as potential predictors.
+
+We see that we care about associations between state:Trump, Trump:county, county:state and some first level interactions. 
+
+If we were to now pivot to logit binomial model where the response the probability of Trump support, we care about which state, i = 2,3,4,5, and whether it is urban or rural:
+
+$$\text{logit}(P(T=Yes)) = \alpha + \beta_{State_i} + \beta_{county}$$
+
+$\alpha$ is our intercept that represents baseline of state 1 and rural. 
+
+We can get these values from the output: 
+
+* Using supportYes baseline $\alpha = 0.2666$
+* Using supportYes:countyUrban: $\beta_{county} = -1.0723$
+* Using supportYes:state[i]: $\beta_2^S = 0.6098$, $\beta_3^S = 0.4447$, $\beta_4^S = -0.1823$, $\beta_5^S = 0.8007$
+
+and
+
+$$\text{logit}(P(T=Yes)) = 0.2666 + 0.6098(\text{State2}) + 0.4447(\text{State3}) - 0.1823(\text{State4}) + 0.8007(\text{State5}) - 1.0723(\text{Urban})$$
+
+Where we have indicator variables (State2) etc. 
+
+
+\newpage
+
+# Problem 4: Faraway Chapter 6 Exercise #5
+
+> The dataset sexfun comes from a questionnaire from 91 couples in the Tucson,
+Arizona, area. Subjects answered the question “Sex is fun for me and my partner.”
+The possible answers were “never or occasionally,” “fairly often,” “very often”
+and “almost always.”
+
+## a.)
+
+> Check for symmetry, quasi-symmetry, marginal homogeneity and
+quasi-independence.
+
+```{r}
+data(sexfun)
 ```
 
 ```{r}
+# Change levels from (never, fairly, very, always) to (1,2,3,4)
+husb <- as.numeric(sexfun$husband)
+wife <- as.numeric(sexfun$wife)
 
+# 1. Create 'symfac' for Symmetry/Quasi-Symmetry
+symfac <- factor(pmin(husb, wife) * 10 + pmax(husb, wife))
+
+# 2. Create 'diag' for Quasi-Independence
+diag <- ifelse(husb == wife, husb, 0)
+diag <- factor(diag)
+
+# Symmetry Model
+model_symmetry <- glm(y ~ symfac, family = poisson, data = sexfun)
+summary(model_symmetry)
+pchisq(deviance(model_symmetry), df.residual(model_symmetry), lower.tail=FALSE)
+
+
+# Quasi-Symmetry Model
+model_qs <- glm(y ~ husband + wife + symfac, family = poisson, data = sexfun)
+pchisq(deviance(model_qs), df.residual(model_qs), lower.tail=FALSE)
+
+# Marginal Homogeneity (Difference between Sym and QS)
+anova(model_symmetry, model_qs, test="Chi")
 ```
 
-#
+Both symmetry and quasi-symmetry models hold. We find that a high p-value in our ANOVA test between the models so it is the case that marginal homogeneity holds. 
 
 ```{r}
-plot(pressure)
+# Quasi-Independence Model (the diagonal is counted as separate, but the rest is marginal)
+model_qi <- glm(y ~ husband + wife + diag, family = poisson, data = sexfun)
+summary(model_qi)
+pchisq(deviance(model_qi), df.residual(model_qi), lower.tail=FALSE)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+The p-value is high so this suggests a good fit.
+
+Overall, because we have marginal homogeneity, all 3 models can fit the data because the marginals are good at explaining the data. 
+
+## b.)
+
+> Develop a score-based model. Find some good-fitting scores.
+
+```{r}
+library(coin)
+
+sf_t = xtabs(y ~ husband + wife, sexfun)
+sexfun$husband <- ordered(sexfun$husband)
+sexfun$wife <- ordered(sexfun$wife)
+lbl_test(as.table(sf_t))
+test_scores <- independence_test(y ~ husband + wife, 
+                                 data = sexfun, 
+                                 weights = ~y,
+                                 scores = list(husband = 1:4, 
+                                               wife = 1:4))
+
+print(test_scores)
+```
+
+Scored model tells us there is strong evidence against independence. 
+
+We can test some other scores:
+
+```{r}
+independence_test(y ~ husband + wife, data = sexfun, weights = ~y, scores = list(husband = exp(1:4), wife = exp(1:4)))
+independence_test(y ~ husband + wife, data = sexfun, weights = ~y, scores = list(husband = log(1:4), wife = log(1:4)))
+
+```
+
+They all tell us the same thing, that there is strong evidence against independence.
+
+\newpage
+
+# Problem 5
+
+> The 2006 General Social Survey asked subjects, “Would you say that astrology is very
+scientific, sort of scientific, or not at all scientific?” The table below cross-classifies their responses
+with their highest degree. Our goal is to investigate whether educated people put less credence in
+astrology. View the opinion about astrology as the response variable and education level as a quantitative
+predictor variable with scores ui=0, 1, 2, 3 and 4.
+
+## a.)
+
+> State the proportional model and its assumptions, and interpret the parameters.
+
+3 outputs of not at all scientific, sort of, and very. The model tells us that we believe that the effect of the predictor is the same for all x (use same Beta). We assume that observations are independent. We assume linearity of relationship between scores and logit of the culmulative probabilities. We assume the "astrology is scientific" is ordered response.
+
+We can model that proportion with logit:
+
+$$\text{logit}[P(Y \le j | x)] = \log \left( \frac{P(Y \le j | x)}{1 - P(Y \le j | x)} \right) = \alpha_j - \beta x, \quad j = 1, \dots, J-1$$
+
+Where x is the quantitative predictor of education levels and j is the scores for 1 (not at all), 2 (sort of), and 3 (very) scientific levels. We have a comparison level so we can actually ignore j = 3. 
+
+Two models are one for not at all ($\text{logit}[P(Y \le 1 | x)] = \alpha_1 - \beta x$) and one for not at all + sort of ($\text{logit}[P(Y \le 2 | x)] = \alpha_2 - \beta x$)
+
+For the parameters:
+
+* $\alpha_j$ tells us the log-odds of moving into category j or less when education level is at $x=0$.
+* slope $\beta$ coefficient tell us effect of education on perception of astrology. Same for all levels x, but perhaps increased in intensity because it is multiplication. 
+
+## b.)
+
+>  Based on the output below, calculate the estimated cumulative odds ratio comparing the
+lowest level of education ‘< High school’ with the highest level ‘Graduate’, and interpret your
+conclusions.
+
+We simply calculate the odds ratio for 4 levels change given the coefficent Beta that is provided:
+
+$$OR_{0 \text{ vs } 4} = e^{-(4 \times (-0.4614))} = e^{1.8456} \approx 6.33$$
+
+Note that odds ratio is negative because it tells us probability of going down, so its opposite for going up in the groups. 
+
+We find that, in regards to responding to astrology as "not at all scientific", someone who is graduate degree is 6.33 times higher odds of answering "not at all scientific" compared to someone who did not finish high school. 
+
+
+## c.)
+
+> Calculate the estimates cell counts for ‘Graduate’ education.
+
+$x = 4$, total count $n=148+23+1=172$, intercept  $\alpha_1 = 0.0264$ (for "Not at all") and $\alpha_2 = 2.3137$ (for "Sort of"), slope $-0.4613754$
+
+Our model is: $\text{logit}[P(Y \le j)] = \alpha_j - \beta x$
+
+* $L_1 = 0.0264 - (-0.4613754 \times 4) = 0.0264 + 1.8455 = 1.8719$
+* $L_2 = 2.3137 - (-0.4613754 \times 4) = 2.3137 + 1.8455 = 4.1592$
+
+Take inverse logit:
+
+* $P(Y \le 1) = \frac{e^{1.8719}}{1 + e^{1.8719}} \approx 0.8667$
+* $P(Y \le 2) = \frac{e^{4.1592}}{1 + e^{4.1592}} \approx 0.9846$
+
+Calculate final probabilities:
+
+* $\pi_1 (\text{Not at all}) = P(Y \le 1) = 0.8667$
+* $\pi_2 (\text{Sort of}) = P(Y \le 2) - P(Y \le 1) = 0.9846 - 0.8667 = 0.1179$
+* $\pi_3 (\text{Very}) = 1 - P(Y \le 2) = 1 - 0.9846 = 0.0154$
+
+Compute cell counts by multiplying by $n=172$ to find that not at all predicts 149.07, sort of is 20.29, and very is 2.65.
+
+
+
+
+
+
+
+
+
+
+
+
+
