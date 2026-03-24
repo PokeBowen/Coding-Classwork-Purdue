@@ -1,0 +1,267 @@
+---
+title: "Stat 526 Hw 7"
+author: "Bowen Zheng"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Problem 0
+
+Bowen Zheng
+
+# Problem 1: Faraway Chapter 7 Exercise #2
+
+> Data were collected from 39 students in a University of Chicago MBA class and may be found in the dataset happy.
+
+## a.)
+
+> Make plots of the relationship between the response, happiness and each of the four predictors. Transform sex and love to appropriate factors.
+
+We can see what the data means here:
+
+https://rdrr.io/cran/faraway/man/happy.html
+
+```{r}
+library(faraway)
+data(happy)
+happy$sex <- factor(happy$sex, labels = c("Unsatisfactory", "Satisfactory"))
+happy$love <- factor(happy$love, labels = c("Lonely", "Secure", "Belonging"))
+print(happy)
+```
+
+```{r}
+plot(happy ~ money, data=happy, main="Happiness vs Money", pch=19)
+plot(happy ~ sex, data=happy, main="Happiness vs Sex", col="lightblue")
+plot(happy ~ love, data=happy, main="Happiness vs Love", col="lightgreen")
+plot(happy ~ work, data=happy, main="Happiness vs Work", pch=19)
+```
+
+## b.)
+
+> Fit a proportional odds model with the main effects of each of the four predictors. Extract the estimated values of using the zeta component of the fit. Make an index plot of these and comment on any deviation from linearity and what this may signify.
+
+We use polr from library MASS like Prof Song.
+
+```{r}
+library(MASS)
+
+model_prop_odds <- polr(factor(happy) ~ money + sex + love + work, data = happy)
+summary(model_prop_odds)
+
+plot(model_prop_odds$zeta, type="b", pch=19, xlab="Threshold Index", ylab="Estimated Zeta Value", main="Index Plot of Thresholds (Zetas)")
+
+predicted_happiness <- predict(model_prop_odds, type = "class")
+plot(predicted_happiness, pch=19, xlab="Threshold Index", ylab="Count", main="Plot of Predicted Happiness")
+plot(happy$happy, predicted_happiness, ylab="Predicted Happiness", xlab="Actual Happiness", main="Plot of Predicted Happiness vs Actual")
+```
+
+Does not seem very linear. This is probably due to most of the predicted values being 4,5,7,8,9. The actual model has much more varied responses.
+
+## c.)
+
+> Use stepwise AIC to select a reduced model. Which variables are eliminated. Make a test to compare this reduced model to the original model.
+
+Stepwise AIC first:
+
+```{r}
+reduced_model <- step(model_prop_odds, direction = "both", trace = 0)
+summary(reduced_model)
+```
+
+
+Anova test comparing nested models deviance next:
+
+```{r}
+anova(model_prop_odds, reduced_model)
+```
+
+We removed sex but it does not seem like removing sex was necessary as the p-value of the comparison is quite high. It is not significantly better to remove it.
+
+## d.)
+
+> Compare a model where love is treated as an ordered factor with one where it is treated as a numerical predictor. Which model is preferred?
+
+```{r}
+# Model with love as Numerical
+data(happy)
+happy_numeric <- happy
+happy_numeric$sex <- factor(happy_numeric$sex, labels = c("Unsatisfactory", "Satisfactory"))
+model_numeric <- polr(factor(happy) ~ money + sex + love + work, data = happy_numeric)
+
+anova(model_numeric, model_prop_odds)
+AIC(model_numeric, model_prop_odds)
+```
+
+Using ANOVA (likelihood test) we see that the factor version has lower deviance, but not significantly so. It also has lower AIC. We prefer the original factor version. 
+
+## e.)
+
+> Examine the regression coefficients of your selected model and provide an interpretation of their meaning.
+
+```{r}
+happy$sex <- factor(happy$sex, labels = c("Unsatisfactory", "Satisfactory"))
+happy$love <- factor(happy$love, labels = c("Lonely", "Secure", "Belonging"))
+summary(model_prop_odds)
+
+exp(coef(model_prop_odds))
+```
+
+Our logit link proportional odds model sees positive coefficients as probability of going to a higher category increases for that predictor. We see that love lonely is the base starting point. So using the log odds conversion, money increases happiness the least. Next is work, then love secure, and the most is love Belonging. Having satisfactory sex seems to decrease happiness. 
+
+## f.)
+
+> Varying money across its range and holding love and work fixed at their median values, predict the most likely happiness level. Repeat the process varying only love and then work. What do we learn about the effect of the three predictors on the response?
+
+Let us just calculate these values.
+
+
+```{r}
+median(happy_numeric$love)
+summary(happy)
+```
+
+Median for money is 50. Median for sex is satisfactory. Median of love is level 3, belonging. Median of work is 4. 
+
+```{r}
+median_money <- 50
+median_sex <- "Satisfactory"
+median_love <- "Belonging"
+median_work <- 4
+
+# SCENARIO A: VARYING MONEY 
+money_seq <- seq(min(happy$money), max(happy$money), length.out = 100)
+df_money <- data.frame(money = money_seq, sex = median_sex, love = median_love, work = median_work)
+prob_money <- predict(model_prop_odds, newdata = df_money, type = "probs")
+# Get most likely category (the column index with max prob)
+mode_money <- apply(prob_money, 1, which.max)
+
+# SCENARIO B: VARYING WORK 
+work_seq <- seq(min(happy$work), max(happy$work), length.out = 5)
+df_work <- data.frame(money = median_money, sex = median_sex, love = median_love, work = work_seq)
+prob_work <- predict(model_prop_odds, newdata = df_work, type = "probs")
+mode_work <- apply(prob_work, 1, which.max)
+
+# SCENARIO C: VARYING LOVE 
+love_levels <- c("Lonely", "Secure", "Belonging")
+df_love <- data.frame(money = median_money, sex = median_sex, love = love_levels, work = median_work)
+prob_love <- predict(model_prop_odds, newdata = df_love, type = "probs")
+mode_love <- apply(prob_love, 1, which.max)
+
+# Visual Comparison
+par(mfrow=c(1,3))
+plot(money_seq, mode_money, type="l", main="Effect of Money", ylim=c(1,10), ylab="Predicted Happiness")
+plot(work_seq, mode_work, type="l", main="Effect of Work", ylim=c(1,10), ylab="")
+plot(1:3, mode_love, type="b", main="Effect of Love", ylim=c(1,10), xaxt="n", ylab="")
+axis(1, at=1:3, labels=c("Lonely", "Secure", "Belonging"))
+```
+
+We see not much effect of money, which makes sense since the coefficient is not large. Work is also just a little. The most is love. This matches our findings earlier. 
+
+## g.)
+
+> Predict the happiness distribution for subject whose parents earn $30,000 a year, who is lonely, not sexually active and has no job.
+
+```{r}
+our_subject <- data.frame(
+  money = 30, # 30 thousand dollars
+  love = "Lonely", # lonely
+  sex = "Unsatisfactory", # no sex
+  work = 1 # no job
+)
+
+pred_our_subject <- predict(model_prop_odds, newdata = our_subject, type = "probs")
+print(pred_our_subject)
+
+# Visualize the distribution
+barplot(pred_our_subject, main = "Predicted Happiness Distribution",
+        xlab = "Happiness Level (1-10)", ylab = "Probability",
+        col = "tomato", border = "white")
+```
+
+They likely have 2 happiness.
+
+
+\newpage
+
+# Problem 2
+
+> As part of a housing market study, you collected data on the number of apartments sold at various price ranges (low, medium, high), in different locations (District A, B, C and D), of different building types (high-rise, low-rise, townhouse), and for three buyer incomes (low, medium, high). You’d like to model the probability of selling an apartment in a specific price range, as function of the remaining three characteristics. You consider two models: (1) price range is determined by additive contributions of location, buyer income, and their interaction and (2) price range is independent of all other factors.
+
+## a.)
+
+> You only have access to software which fits Poisson regressions. Write models (1) and (2) above in terms of the Poisson log-linear model. Clearly define the notation and state the assumptions.
+
+This is a surrogate log-linear model that we model with glm poisson. The model tests that price is independent of all other factors, and is the same as the multinomial null model (ie like a contingency table). 
+
+The model predictors:
+
+Let $n_{ijkl}$ be the observed count (number of apartments sold), where the indices represent:$i$: 
+- Price Range ($i = 1, \dots, I$) The Response Variable
+- $j$: Location ($j = 1, \dots, J$)
+- $k$: Building Type ($k = 1, \dots, K$)
+- $l$: Buyer Income ($l = 1, \dots, L$)
+
+We assume each count $n_{ijkl}$ follows a Poisson distribution with mean $\mu_{ijkl}$. In a logit log-linear model, we model $\log(\mu_{ijkl})$. We also assume log-linearity in that the log of the expected count is a linear function of the parameters. There is multinomial equivalence, ie that there is a fixed amount that is split into the categories. 
+
+### Model 1
+
+For model 1 with conditional independence, we have to model each predictor used:
+
+$$\log(\mu_{ijkl}) = \beta_0 + \beta_i^P + \beta_j^L + \beta_k^B + \beta_l^I + \beta_{jk}^{LB} + \beta_{jl}^{LI} + \beta_{kl}^{BI} + \beta_{jkl}^{LBI} + \mathbf{\beta_{ij}^{PL} + \beta_{il}^{PI} + \beta_{ijl}^{PLI}}$$
+
+We care about how the other predictors (location, buyer income) and price have interaction. We do not care about building type, but we can include its interactions if we wish to test its interaction with price. 
+
+### Model 2
+
+For model 2 of global independence, we assume the apartment price range i does not change based on the predictors we have.
+
+$$\log(\mu_{ijkl}) = \beta_0 + \beta_i^P + \beta_{jkl}^{LBI}$$
+
+We have predictor for main effect of price and the join distribution of all other explanatory variables. There is no interaction between other variables and price.
+
+## b.)
+
+> What test statistic would you use to assess the fit of each model? Make sure to state the test statistic’s reference distribution (including degrees of freedom).
+
+Both models are poisson glm, so we can use deviance or pearson's residual chi-squared. Under the null hypothesis, deviance and Pearson's chi-squared follow a Chi-squared distribution.
+
+The degrees of freedom is calculated as following: $N = I \times J \times K \times L =108$ and $p$ = the number of non-redundant parameters in your model (including the intercept $\lambda$). Then $df = N - p$.
+
+For model 1, we have parameters: $J \times K \times L = 4 \times 3 \times 3 = \mathbf{36}$, price main effect: $(I - 1) = 2$, price $\times$ location: $(I - 1)(J - 1) = 2 \times 3 = 6$Price $\times$, buyer income: $(I - 1)(L - 1) = 2 \times 2 = 4$, price $\times$ location $\times$, buyer income: $(I - 1)(J - 1)(L - 1) = 2 \times 3 \times 2 = 12$. So, $df = 108-60=48$. 
+
+For model 2, we have intercept ($\lambda$): $1$, price effect ($\lambda_i^P$): $I - 1 = 2$, joint explanatory effect ($\lambda_{jkl}^{LBI}$): $(J \times K \times L) - 1 = (4 \times 3 \times 3) - 1 = 35$. We find $df = 108-38 = 70$. 
+
+
+\newpage
+
+# Problem 3
+
+> A computer software company classifies a random sample of their service calls based on the complexity of the issue (1=low to 4=high) and the customer’s satisfaction with the solution (1=very low to 5=very high).
+
+## a.)
+
+> Are these categorical variables nominal or ordinal? Explain your answer.
+
+Complexity of issue is ordinal. It is ranked from low to high, ie 1 is smaller than 2 etc. 
+
+Customer satisfaction is ordinal. They also go from very low to very high, which means they follow this ranked hierarchy again. 
+
+## b.)
+
+> The company would like to develop a model to predict satisfaction based on complexity. Fit the following four models and use the results to determine the best model. Make sure to summarize all tests used in this determination.
+
+### i.) Proportional-odds model with complexity as a nominal factor
+
+
+
+
+
+
+
+```{r}
+
+```
