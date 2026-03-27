@@ -254,13 +254,285 @@ Customer satisfaction is ordinal. They also go from very low to very high, which
 
 > The company would like to develop a model to predict satisfaction based on complexity. Fit the following four models and use the results to determine the best model. Make sure to summarize all tests used in this determination.
 
+
 ### i.) Proportional-odds model with complexity as a nominal factor
 
+```{r}
+# our data
+df <- data.frame(
+  Complexity = rep(1:4, each=5),
+  Satisfaction = rep(1:5, 4),
+  Freq = c(22, 64, 88, 47, 9, 32, 91, 170, 116, 41, 26, 90, 242, 322, 110, 21, 78, 248, 585, 176)
+)
+print(df)
+```
+
+Again, we use polr from MASS and now multinomial from nnet libraries like Professor Song.
+
+In models i and ii, we treat complexity as a ordered 4 levels. In models iii and iv, we ignore ordering and treat them as categories that the counts fall into.
+
+```{r}
+library(MASS) # For polr
+library(nnet) # For multinomial
+
+df$Satisfaction <- factor(df$Satisfaction, ordered = TRUE)
+
+# i) Proportional-odds with complexity as nominal 
+mod_i <- polr(Satisfaction ~ factor(Complexity), weights = Freq, data = df, Hess = TRUE)
+summary(mod_i)
+
+# ii) Proportional-odds with complexity as ordered 
+mod_ii <- polr(Satisfaction ~ as.numeric(Complexity), weights = Freq, data = df, Hess = TRUE)
+summary(mod_ii)
+
+# iii) Multinomial logit with complexity as nominal
+mod_iii <- multinom(Satisfaction ~ factor(Complexity), weights = Freq, data = df)
+summary(mod_iii)
+
+# iv) Multinomial logit with complexity as ordered
+mod_iv <- multinom(Satisfaction ~ as.numeric(Complexity), weights = Freq, data = df)
+summary(mod_iv)
+```
+
+AIC of model iv is lowest while model 3 has lowest residual deviance. 
+
+We can perform more robust comparison test using residual deviances in the likelihood ratio test. 
 
 
+For model 1 vs 2: $G^2 = 6843.134 - 6839.218 \approx 3.9$ with $df = 7-5=2$ and p-value of 0.1422741. We do not reject the null hypothesis and accept that treating complexity as numeric is sufficient. We can also use ANOVA to do this likelihood ratio test.
+
+```{r}
+anova(mod_i, mod_ii)
+```
+For model 1 vs 3: $G^2 = 6843.134 - 6816.461 \approx 26.7$ and $df = 16-7=9$ with p-value of 0.001567796. Model 3 is significantly better and this likely suggests that the proportional odds assumption model should be rejected and we should use the multinomial logit models instead. 
+
+Finally, 3 vs 4: 
+```{r}
+anova(mod_iii, mod_iv)
+```
+4 is not statistically significantly better, but it uses less parameters, leading to a better degree of freedom and a simpler model that also performs the best (with lowest AIC). 
+
+We choose model 4. 
+
+## c.)
+
+> The residual deviance using both polr and multinom procedures provide the ungrouped residual deviance, which cannot be used to assess goodness of fit. What is the grouped residual deviance and degrees of freedom for your best fitting model in b)?
+
+We have to calculate this grouped residual deviance. First for the fully saturated model deviance calculation:
+
+```{r}
+call_counts = matrix(c(22, 64, 88, 47, 9, 32, 91, 170, 116, 41, 26, 90, 242, 322, 110, 21, 78, 248, 585, 176), 
+                     nrow = 4, byrow = TRUE)
+row_totals <- rowSums(call_counts)
+proportions <- call_counts / row_totals
+deviance_log_likelihood_saturated <- 2*sum(call_counts * log(proportions))
+df_saturated <- 4 * (5-1)
+
+deviance_log_likelihood_modeliv <- 2*logLik(mod_iv)
+
+grouped_deviance <- deviance_log_likelihood_saturated - deviance_log_likelihood_modeliv
+grouped_df <- df_saturated - length(coef(mod_iv)) # should be 16 - 8 = 8
+
+pchisq(grouped_deviance, grouped_df, lower.tail = FALSE)
+```
+
+Since the p-value is greater than 0.05, we fail to reject the null hypothesis, which means that we accept the model as providing a good fit to our data. 
+
+## d.)
+
+> Given your best model in b), compute the conditional distribution of satisfaction given the complexity of the issue is high.
+
+We predict on complexity with level high:
+
+```{r}
+high_complexity_data <- data.frame(Complexity = 4)
+
+predict(mod_iv, newdata = high_complexity_data, type = "probs")
+```
+
+We are most likely going to be in satisfaction level 4. 
 
 
+\newpage
 
+# Problem 4
+
+> The following data report the survival of 30 late stage liver cancer patients (in weeks) according to three different treatment methods. Some R output is provided below.
+
+## a.)
+
+> Compute the Kaplan-Meier estimates of the survival function for each of three treatments.
+
+From our notes, we know:
+
+$$S(t) = \prod_{i: t_i \le t} \left( 1 - \frac{d_i}{n_i} \right)$$
+
+We can do these calculation for each treatment.
+
+Treatement 1:
+
+$$
+\begin{tabular}{|c|c|c|c|c|c|}
+\hline
+Time ($t$) & At Risk ($n_i$) & Events ($d_i$) & Censored & $1 - (d_i/n_i)$ & $\hat{S}(t)$ \\ \hline
+0  & 10 & 0 & 0 & 1     & 1.000 \\ \hline
+2  & 10 & 1 & 1 & 0.900 & 0.900 \\ \hline
+4  & 8  & 1 & 0 & 0.875 & 0.788 \\ \hline
+7  & 6  & 1 & 0 & 0.833 & 0.656 \\ \hline
+9  & 5  & 1 & 0 & 0.800 & 0.525 \\ \hline
+12 & 4  & 1 & 0 & 0.750 & 0.394 \\ \hline
+24 & 1  & 1 & 0 & 0.000 & 0.000 \\ \hline
+\end{tabular}
+$$
+
+Treatment 2:
+
+$$
+\begin{tabular}{|c|c|c|c|c|c|}
+\hline
+Time ($t$) & At Risk ($n_i$) & Events ($d_i$) & Censored & $1 - (d_i/n_i)$ & $\hat{S}(t)$ \\ \hline
+0  & 10 & 0 & 0 & 1     & 1.000 \\ \hline
+1  & 10 & 2 & 0 & 0.800 & 0.800 \\ \hline
+3  & 8  & 1 & 0 & 0.875 & 0.700 \\ \hline
+6  & 6  & 2 & 0 & 0.667 & 0.467 \\ \hline
+9  & 3  & 1 & 0 & 0.667 & 0.311 \\ \hline
+10 & 2  & 1 & 0 & 0.500 & 0.156 \\ \hline
+\end{tabular}
+$$
+
+Treatment 3:
+
+$$
+\begin{tabular}{|c|c|c|c|c|c|}
+\hline
+Time ($t$) & At Risk ($n_i$) & Events ($d_i$) & Censored & $1 - (d_i/n_i)$ & $\hat{S}(t)$ \\ \hline
+0  & 10 & 0 & 0 & 1     & 1.000 \\ \hline
+6  & 9  & 1 & 0 & 0.889 & 0.889 \\ \hline
+8  & 8  & 1 & 0 & 0.875 & 0.778 \\ \hline
+10 & 7  & 1 & 0 & 0.857 & 0.667 \\ \hline
+13 & 5  & 2 & 0 & 0.600 & 0.400 \\ \hline
+19 & 2  & 1 & 0 & 0.500 & 0.200 \\ \hline
+21 & 1  & 1 & 0 & 0.000 & 0.000 \\ \hline
+\end{tabular}
+$$
+
+Alternatively, we can use library survival and write our data and test it using survfit function. Honestly easier to just use a excel sheet and convert to latex like we did here.
+
+```{r}
+library(survival)
+library(survminer)
+# status: 1 = death (event), 0 = censored
+trt1_time <- c(2, 2, 4, 6, 7, 9, 12, 17, 19, 24)
+trt1_cens <- c(0, 1, 1, 0, 1, 1, 1, 0, 0, 1)
+
+trt2_time <- c(1, 1, 3, 4, 6, 6, 8, 9, 10, 12)
+trt2_cens <- c(1, 1, 1, 0, 1, 1, 0, 1, 1, 0)
+
+trt3_time <- c(5, 6, 8, 10, 12, 13, 13, 14, 19, 21)
+trt3_cens <- c(0, 1, 1, 1, 0, 1, 1, 0, 1, 1)
+
+df <- data.frame(
+  time = c(trt1_time, trt2_time, trt3_time),
+  status = c(trt1_cens, trt2_cens, trt3_cens),
+  trt = rep(c("Trt 1", "Trt 2", "Trt 3"), each = 10)
+)
+
+# Compute KM estimate
+km_fit <- survfit(Surv(time, status) ~ trt, data = df)
+print(summary(km_fit))
+
+# Plot with some online help
+ggsurvplot(km_fit, 
+           data = df, 
+           pval = TRUE,             # Adds Log-Rank p-value to the plot
+           conf.int = FALSE, 
+           palette = c("#E7B800", "#2E9FDF", "#FC4E07"),
+           title = "Kaplan-Meier Survival Curves by Treatment",
+           xlab = "Time (Weeks)",
+           ylab = "Survival Probability",
+           legend.labs = c("Trt 1", "Trt 2", "Trt 3"))
+```
+
+## b.)
+
+> Test whether the Kaplan-Meier estimates of the three survival functions are equal.
+
+Log-Rank test (in R) for Equality
+
+```{r}
+surv_test <- survdiff(Surv(time, status) ~ trt, data = df)
+print(surv_test)
+```
+
+High p value greater than 0.05 suggests that we do not reject the null hypothesis. The 3 treatments are statistically not significantly different. 
+
+## c.)
+
+> Assume the survival functions are “exponential.” Compute the maximum likelihood estimates of the mean survival time for the three groups as well as their standard errors, respectively.
+
+We assume a constant hazard rate. Given $S(t) = e^{-\lambda t}$, mean survival time is given by $\theta = 1/\lambda$. We simply use the MLE estimate for the mean here $\hat{\theta} = \frac{\sum t_i}{d}$ with corresponding Standard Error estimate of $SE(\hat{\theta}) = \frac{\hat{\theta}}{\sqrt{d}}$. $d$ is the count of how many die (ie total minus the censored).
+
+Group 1:
+
+```{r}
+sum(trt1_time)
+sum(trt1_cens)
+sum(trt1_time)/sum(trt1_cens)
+sum(trt1_time)/sum(trt1_cens) / sqrt(sum(trt1_cens))
+```
+
+MLE Mean is 17 weeks and SE is 6.94.
+
+Group 2:
+
+```{r}
+sum(trt2_time)
+sum(trt2_cens)
+sum(trt2_time)/sum(trt2_cens)
+sum(trt2_time)/sum(trt2_cens) / sqrt(sum(trt2_cens))
+```
+
+MLE Mean is 8.571429 weeks and SE is 3.239695.
+
+Group 3:
+
+```{r}
+sum(trt3_time)
+sum(trt3_cens)
+sum(trt3_time)/sum(trt3_cens)
+sum(trt3_time)/sum(trt3_cens) / sqrt(sum(trt3_cens))
+```
+
+MLE Mean is 17.28571 weeks and SE is 6.533386
+
+
+## d.)
+
+> Test whether the mean survival time for the three groups are equal.
+
+We test likelihood ratio test for exponential models. Compare different mean survival vs all the same models.
+
+If they all have the same mean, we have combined model of total events ($D$) = $6 + 7 + 6 = 19$ and total time ($T$) = $102 + 60 + 121 = 283$ which gives us $\hat{\theta}_{common} = 283 / 19 \approx 14.89$. The log likelihood of this is $L_0$) = $D \ln(1/\hat{\theta}_{common}) - \frac{T}{\hat{\theta}_{common}} = 19 \ln(1/14.89) - 19 \approx -70.31$.
+
+For all different means: 
+$$L_1 = \sum [d_j \ln(1/\hat{\theta}_j) - \frac{T_j}{\hat{\theta}_j}] = \sum [d_j \ln(1/\hat{\theta}_j) - d_j] = [6 \ln(1/17) - 6] + [7 \ln(1/8.57) - 7] + [6 \ln(1/20.17) - 6] \approx -69.06$$
+
+Our test statistic is $G^2 = -2 (-70.31 - (-69.06)) = 2.5$ and $df = 3 - 1 =2$. This has p-value greater than 0.05. 
+
+Compare to R results:
+
+```{r}
+# Fit the null model (common mean)
+fit_null <- survreg(Surv(time, status) ~ 1, data = df, dist = "exponential")
+
+# Fit the alternative model (different means)
+fit_alt <- survreg(Surv(time, status) ~ trt, data = df, dist = "exponential")
+
+# Likelihood Ratio Test
+anova(fit_null, fit_alt)
+```
+
+We fail to reject the null hypothesis. There is statistically no significant difference between mean survival times of the three groups. 
 
 ```{r}
 
