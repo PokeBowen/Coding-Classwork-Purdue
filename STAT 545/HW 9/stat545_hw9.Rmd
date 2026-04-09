@@ -1,0 +1,137 @@
+---
+title: "STAT 545 Hw 9"
+author: "Bowen Zheng"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Problem 1
+
+> (CauchyMLE).Consider i.i.d. Cauchy($\mu$,1) distributed data $X_1, \dots, X_n,$ with density
+
+$$
+\frac{1}{\pi} [\frac{1}{1 + (x-\mu)^2}]
+$$
+
+## A.
+
+> We are interested in the maximum likelihood estimate of $\mu$. Derive the Fisher scoring algorithm for finding the MLE.
+
+We simplify a bit from our likelihood equation:
+$$f(x_i | \mu) = \frac{1}{\pi} [1 + (x_i - \mu)^2]^{-1}$$
+
+The log-likelihood is:
+$$\ell(\mu) = \sum_{i=1}^n \ln f(x_i | \mu) = -n \ln \pi - \sum_{i=1}^n \ln(1 + (x_i - \mu)^2)$$
+
+We take the derivative with respect to $\mu$:
+$$S(\mu) = \frac{\partial \ell(\mu)}{\partial \mu} = -\sum_{i=1}^n \frac{\partial}{\partial \mu} \ln(1 + (x_i - \mu)^2)$$
+$$S(\mu) = -\sum_{i=1}^n \frac{1}{1 + (x_i - \mu)^2} \cdot 2(x_i - \mu)(-1) = \sum_{i=1}^n \frac{2(x_i - \mu)}{1 + (x_i - \mu)^2}$$
+
+Now that we have this, we can easily find the Fisher information:
+$$I_1(\mu) = E\left[ \left( \frac{\partial}{\partial \mu} \ln f(X|\mu) \right)^2 \right]$$
+
+The expected value is the integral inside times the distribution itself:
+$$\int_{-\infty}^{\infty} \left( \frac{2(x-\mu)}{1+(x-\mu)^2} \right)^2 \frac{1}{\pi(1+(x-\mu)^2)} dx = \frac{1}{2}$$
+
+Then, we observe n number of X's: 
+$$I(\mu) = n \cdot I_1(\mu) = \frac{n}{2}$$
+
+The idea from here is that we use Newton's method to finding the MLE using the Fisher Scoring (from notes):
+$$\mu^{(k+1)} = \mu^{(k)} + I^{-1}(\mu^{(k)}) S(\mu^{(k)})$$
+
+Plug in our values to find:
+$$\mu^{(k+1)} = \mu^{(k)} + \frac{\sum_{i=1}^n \frac{2(x_i - \mu^{(k)})}{1 + (x_i - \mu^{(k)})^2}}{n/2} = \mu^{(k)} + \frac{4}{n} \sum_{i=1}^n \frac{x_i - \mu^{(k)}}{1 + (x_i - \mu^{(k)})^2}$$
+
+Our algorithm would be to pick a good starting value of $\mu^{(0)}$ and then updating $\mu^{(k+1)}$ until the norm of the gradient of the change in likelihood is less than some specified tolerance. 
+
+## B.
+
+> Set true $\mu=5$. Generate 50 simulated data points from the Cauchy density in part A (you can use rcauchy() in R). Implement your scoring algorithm in R with a starting value $\mu_0=0$. Use a tolerance of $10^{-5}$ to terminate your search. Prepare a table or figure of log-likelihood values against iteration number before the search terminates. Use seed=123 in R so your results can be replicated.
+
+We run the algorithm we derived in the previous step.We can run the simplified final equation but here I just simply plug in our values to the Newton's method:
+$$\mu^{(k+1)} = \mu^{(k)} + I^{-1}(\mu^{(k)}) S(\mu^{(k)})$$
+
+```{r}
+set.seed(123)
+
+# Generate Data
+n <- 50
+true_mu <- 5
+x <- rcauchy(n, location = true_mu, scale = 1)
+
+# Define Log-Likelihood Function
+log_likelihood <- function(mu, data) {
+  -length(data) * log(pi) - sum(log(1 + (data - mu)^2))
+}
+
+# Define Fisher Scoring Algorithm
+mu_curr <- 0  
+tol <- 1e-5
+max_iter <- 1000
+history <- data.frame(iteration = 0, mu = mu_curr, log_lik = log_likelihood(mu_curr, x))
+
+# Finally our algorithm
+for (i in 1:max_iter) {
+  # Calculate Score function S(mu)
+  score <- sum(2 * (x - mu_curr) / (1 + (x - mu_curr)^2))
+  
+  # Fisher Information (I(mu) = n/2)
+  fisher_info <- n / 2
+  
+  # Update mu
+  mu_next <- mu_curr + (score / fisher_info)
+  
+  # Record history
+  log_lik_next <- log_likelihood(mu_next, x)
+  history <- rbind(history, c(i, mu_next, log_lik_next))
+  
+  # Check convergence
+  if (abs(mu_next - mu_curr) < tol) {
+    break
+  }
+  
+  mu_curr <- mu_next
+}
+
+# View the final results
+print(history)
+```
+
+Wow that sure converges fast.
+
+\newpage
+
+# Problem 2
+
+> (Affine invariance of Newton's method). Let $f: R^n \to R$. Consider a Newton iteration to minimize f, given by,
+
+$$
+x_{k+1} = x_k - (\nabla^2 f(x_k) )^{-1} \nabla f(x_k)
+$$
+
+> Consider a transformation $y=Ax+b$, for some known non-singular $A \in R^n$ and some non-zero $b\in R^{n\times n}$. Show that the Newton step in the y scale is independent of A and b.
+
+Given $A$ non-singular, then $A^{-1}$ exists. Then we define $x = A^{-1}(y - b)$. Then a function of x can be defined as a function of y:
+$$f(x) = f(A^{-1}(y - b)) = g(y)$$
+
+Ok, now we can compute the gradient and Hessian of $g(y)$ so that we can use it in Newton's iteration on $y$. Note: $\frac{dx}{dy} = A^{-1}$. Then,
+$$\nabla g(y) = (A^{-1})^T \nabla f(x) = A^{-T} \nabla f(x)$$
+$$\nabla^2 g(y) = \frac{d}{dy} [A^{-T} \nabla f(x)] = A^{-T} \nabla^2 f(x) \frac{dx}{dy} = A^{-T} \nabla^2 f(x) A^{-1}$$
+
+Now we use Newton's iteration on y:
+$$y_{k+1} = y_k - (\nabla^2 g(y_k))^{-1} \nabla g(y_k)$$
+Which is:
+$$y_{k+1} = y_k - (A^{-T} \nabla^2 f(x_k) A^{-1})^{-1} (A^{-T} \nabla f(x_k)) = y_k - (A (\nabla^2 f(x_k))^{-1} A^T) (A^{-T} \nabla f(x_k)) = y_k - A (\nabla^2 f(x_k))^{-1} \nabla f(x_k)$$
+
+Now, convert everything back to in terms of x (try to get form $\mu^{(k+1)} = \mu^{(k)} + I^{-1}(\mu^{(k)}) S(\mu^{(k)})$). We just replace $y_i = Ax_i + b$:
+$$y_{k+1} = Ax_{k+1} + b = Ax_k + b - A (\nabla^2 f(x_k))^{-1} \nabla f(x_k) \implies x_{k+1} = x_k - (\nabla^2 f(x_k))^{-1} \nabla f(x_k)$$
+
+This means that the iteration derived from optimizing y is the same procedure as the iteration derived from doing it on x. Thus, Newton step is independent of the affine transformation.
+
+
+
+

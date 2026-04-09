@@ -1,0 +1,193 @@
+---
+title: "STAT 526 HW 9"
+author: "Bowen Zheng"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Problem 0
+
+Bowen Zheng
+
+# Problem 1
+
+> To assess the gender risk of death from coronary heart disease (CHD), a study was performed controlling for genetic and environmental factors by using fraternal twins, one male and one female. The age at which a male/female twin died of CHD was recorded. The dataset twin contains the following samples from this study.
+
+## a.)
+
+> Calculate the Kaplan-Meier estimates of the survival functions for the male group.
+
+Our estimate function is:
+$$\hat{S}(t) = \prod_{i: t_i \le t} \left( 1 - \frac{d_i}{n_i} \right)$$
+
+We can make a table for that:
+
+| Age ($t_i$) | At Risk ($n_i$) | Deaths ($d_i$) | Censored | $1 - d_i/n_i$ | $\hat{S}(t)$ |
+|:---:|:---:|:---:|:---:|:---:|:---:|
+| 0 | 12 | 0 | 0 | - | 1.000 |
+| 49 | 12 | 1 | 0 | 0.917 | 0.917 |
+| 50 | 11 | 0 | 1 | 1.000 | 0.917 |
+| 56 | 10 | 1 | 0 | 0.900 | 0.825 |
+| 61 | 9 | 0 | 1 | 1.000 | 0.825 |
+| 67 | 8 | 0 | 1 | 1.000 | 0.825 |
+| 68 | 7 | 0 | 1 | 1.000 | 0.825 |
+| 69 | 6 | 1 | 0 | 0.833 | 0.688 |
+| 70 | 5 | 1 | 0 | 0.800 | 0.550 |
+| 74 | 4 | 2 | 0 | 0.500 | 0.275 |
+| 75 | 2 | 1 | 0 | 0.500 | 0.138 |
+| 81 | 1 | 1 | 0 | 0.000 | 0.000 |
+
+## b.)
+
+> Using the output below, state the hypothesis that gender is a risk factor of death from CHD, and test the hypothesis while controlling for genetic and environmental factors.
+
+This is Log-Rank Test of homogeneity.
+
+The null hypothesis is that there is no differences between the survival probability between the male group and female group.
+
+The alternative hypothesis there is a significant difference between the survival probability between the male group and female group.
+
+We can do the test. From the output, we observe 7 female deaths and 8 male deaths with expected deaths to be 7.91 for female and 7.09 for male. 
+
+We need to calculate the test statistic. We first solve for variance given our output: 
+$$\frac{(7 - 7.91)^2}{V} = 0.299 \implies v = 2.76957$$
+
+We can calculate the test statistic $((7 - 7.91)^2 + (8-7.09)^2) / \sqrt(2.76957)$ or simply use the R output of $0.299$ on 1 degree of freedom.  
+```{r}
+pchisq(0.299, 1, lower.tail = FALSE)
+```
+For $\chi^2 = 0.299$ with $1$ $df$, the p-value is approximately 0.5845.
+
+Since p-value is greater than confidence level 0.05, we fail to reject the null hypothesis. We believe that there is no significant evidence that the two groups have different survival probabilities. 
+
+## c.)
+
+> An accelerated failure time model is fitted to the data as shown below. Using the output below, predict the probability for a female with CHD to survive past 75.
+
+Survival function is
+$$S(t) = \exp\left( -t \cdot \lambda \right) = \exp\left( -t \cdot e^{-\mu} \right) = \exp(-t \cdot e^{- (\beta_0 + \beta_1 x)})$$
+
+Female is baseline so $\mu = \text{Intercept} = 4.772$. 
+
+The scale parameter is $\lambda = e^{-\mu} = e^{-4.772} \approx 0.008463$. Then:
+$$S(75) = \exp(-75 \cdot 0.008463) = \exp(-0.634725) \approx 0.530$$
+
+The predicted survival probability to survive past age 75 is around 53%. 
+
+## d.)
+
+> A proportional hazards model is fitted to the data as shown below. For a twin consisting of a male and female, what is the effect of gender on the survival?
+
+We see outputs coef ($\beta$) = 0.26 and exp(coef) ($HR$) = 1.30. The exp(coef) is the hazard ratio meaning we have 30% higher risk of death from CHD as a male compared to female. 
+
+However, the p-value is 0.62 and our confidence interval includes 1, meaning we do not have significant evidence of the effect of gender on survival. 
+
+\newpage
+
+# Problem 2
+
+> Consider the dataset mgus in the library survival (use ?mgus for information on the dataset). Your goal is to model the survival time of these patients using Cox proportional hazard model (ignore variables pcdx and pctime, which have a large proportion of missing data). Verify the plausibility of a proportional hazard model for this dataset. Select important predictors in the model, and their functional form. Evaluate the quality of fit (optional). Interpret model parameters and discuss the results. 
+Hint: i) logarithm transformation of creat is suggested due to its high skewness ii) please use resid() function to obtain martingale residuals. Use visual diagnosis of martingale residuals (under null model) vs predictor. iii) To diagnose proportional hazard assumption with respect to continuous predictor, you can convert this continuous predictor to categorical variable (say partition based on empirical quantity), then use the plot of log(-logS(t)) vs log(t).
+
+```{r}
+library(survival)
+library(survminer)
+
+# Ignore pcdx and pctime as per instructions
+df <- mgus[, !(names(mgus) %in% c("pcdx", "pctime"))]
+df <- na.omit(df) # get rid of NA
+
+# Null model to obtain martingale residuals
+null_model <- coxph(Surv(futime, death) ~ 1, data = df)
+df$mart_resid <- resid(null_model, type = "martingale")
+
+# Transform creat as suggested by hint (i)
+df$log_creat <- log(df$creat)
+
+# Visual diagnosis of martingale residuals (under null model) vs predictor (creatine) by hint (ii)
+plot(df$creat, df$mart_resid, xlab = "Creatinine", ylab = "Martingale Residuals")
+lines(lowess(df$creat, df$mart_resid), col = "red")
+
+plot(df$log_creat, df$mart_resid, xlab = "Log Creatinine", ylab = "Martingale Residuals")
+lines(lowess(df$creat, df$mart_resid), col = "red")
+
+
+```
+
+Yeah creat seems important. It doesn't seem super straight, but seems more straight horizontal with log creat.
+
+We now fit the full model:
+```{r}
+# Full model
+fit_full <- coxph(Surv(futime, death) ~ age + sex + hgb + alb + log_creat, data = df)
+summary(fit_full)
+```
+
+Concordance is high at 0.707, it is good for fit. We can perform likelihood ratio test here using ANOVA (between null and full model) to evaluate the quality of fit even more. 
+
+Age seems to be the only significant one. We can try testing for parallelism (like hint iii says):
+```{r}
+# Partition age into categories
+df$age_cat <- ifelse(df$age > median(df$age), "Old", "Young")
+surv_fit <- survfit(Surv(futime, death) ~ age_cat, data = df)
+
+# Log-Log Plot
+plot(surv_fit, fun = "cloglog", col = 1:2, xlab = "log(time)", ylab = "log(-log(S(t)))")
+```
+
+Maybe we check the semi-important predictors too (hgb, log_creat):
+```{r}
+# Partition age into categories
+df$hgb_cat <- ifelse(df$hgb > median(df$hgb), "less", "more")
+surv_fit <- survfit(Surv(futime, death) ~ hgb_cat, data = df)
+
+# Log-Log Plot
+plot(surv_fit, fun = "cloglog", col = 1:2, xlab = "log(time)", ylab = "log(-log(S(t)))")
+
+# Partition age into categories
+df$log_creat_cat <- ifelse(df$log_creat > median(df$log_creat), "less", "more")
+surv_fit <- survfit(Surv(futime, death) ~ log_creat_cat, data = df)
+
+# Log-Log Plot
+plot(surv_fit, fun = "cloglog", col = 1:2, xlab = "log(time)", ylab = "log(-log(S(t)))")
+```
+
+Yes, very parallel for age. Only crosses at the very end where we have limited data for the other two variables. This supports the cox proportional odds assumption. 
+
+We interpret the model parameters by looking at the exp(coef) aka the hazard ratios. We see that the model predicts that every year increase in age increases the hazard of death by 7%, being male at 19% higher, for each unit increase of hbg a 11% decrease, for each unit increase of alb a 22% decrease, and finally for each unit of log_creat, hazard increases by over 70%. 
+
+\newpage
+
+# Problem 3
+
+> The data set denim in the Faraway library contains the amount of waste in denim due to cutting the material for jeans. The data are broken down by five suppliers, which we’ll assume are randomly sampled from a larger population of suppliers.
+
+## a.)
+
+> Visualize the data and comment on what you find.
+
+
+
+```{r}
+library(survival)
+library(survminer)
+```
+
+
+```{r}
+
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

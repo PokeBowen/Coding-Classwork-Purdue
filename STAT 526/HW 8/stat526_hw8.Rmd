@@ -1,0 +1,266 @@
+---
+title: "STAT 526 HW 8"
+author: "Bowen Zheng"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Problem 0
+
+Bowen Zheng
+
+# Problem 1
+
+> The log-log confidence interval for S(t) is often recommended. Given that $Var(log[S(t)]) \approx \sum \frac{d_j}{(n_j - d_j) n_j}$ use the delta method to approximate the variance of log(-log[S(t)]). Make sure to show all the calculation steps.
+
+We start with our random variable being $Y = \log[\hat{S}(t)]$ and then are transforming it with log, ie finding $\log(-\log[\hat{S}(t)])$. For the delta method, we know $\text{Var}(g(Y)) \approx [g'(\mu_Y)]^2 \text{Var}(Y)$.
+
+Then $g(Y) = \log(-Y)$.
+
+We calculate the first derivative:
+$$g'(Y) = \frac{d}{dY} \log(-Y) = \frac{1}{-Y} \cdot (-1) = \frac{1}{Y}$$
+Which means:
+$$g'(\log[\hat{S}(t)]) = \frac{1}{\log[\hat{S}(t)]}$$
+
+Now we plug into our delta method equation:
+$$\widehat{\text{Var}}(\log(-\log[\hat{S}(t)])) \approx \left[ \frac{1}{\log[\hat{S}(t)]} \right]^2 \widehat{\text{Var}}(\log[\hat{S}(t)]) = \frac{1}{[\log\hat{S}(t)]^2} \sum_{t_j \le t} \frac{d_j}{(n_j - d_j)n_j}$$
+
+
+\newpage
+
+# Problem 2
+
+> The survival times of 11 patients with Acute Myelogenous Leukemia are given below: 9, 13, 13+, 18, 23, 28+, 31, 34, 45+, 48, 161+, where censored data are marked by “+” in the superscript.
+
+## a.)
+
+> Calculate the Kaplan-Meier estimate of S(20).
+
+Our KM estimate:
+$$\hat{S}(t) = \prod_{i: t_i \le t} \left( 1 - \frac{d_i}{n_i} \right)$$
+
+
+| $t_i$ | $n_i$ (At Risk) | $d_i$ (Events) | $1 - d_i/n_i$ | $\hat{S}(t_i)$ |
+| :--- | :--- | :--- | :--- | :--- |
+| 9 | 11 | 1 | 10/11 | 0.9091 |
+| 13 | 10 | 1 | 9/10 | 0.8182 |
+| 18 | 8 | 1 | 7/8 | 0.7159 |
+
+Next death at t=23 so we do not need to calculate that far. Our final value is 0.7159 as our estimate for S(20).
+
+## b.)
+
+> Obtain the standard error of $log \hat{S}(20)$.
+
+We use the identity given to us earlier. 
+$$Var(\log \hat{S}(t)) = \sum_{i: t_i \le t} \frac{d_i}{n_i(n_i - d_i)}$$
+
+Looking at our table earlier, we can grab these numbers for the time events 9,13,18. We have $t=9$: $\frac{1}{11(10)} = 0.00909$, $t=13$: $\frac{1}{10(9)} = 0.01111$, $t=18$: $\frac{1}{8(7)} = 0.01786$.
+
+Then $Var(\log \hat{S}(20)) = 0.00909 + 0.01111 + 0.01786 = 0.03806$ and $SE(\log \hat{S}(20)) = \sqrt{0.03806} \approx \mathbf{0.1951}$.
+
+## c.)
+
+> Assuming an exponential distribution, estimate S(20).
+
+We know $S(t) = e^{-\lambda t}$. MLE for $\lambda$ is $\hat{\lambda} = \frac{D(t)}{\sum T_i}$. 
+
+We can calculate $\hat{\lambda} = \frac{7}{423} \approx 0.01655$ and then $\hat{S}(20) = e^{-0.01655 \times 20} = e^{-0.331} \approx 0.7182$
+
+## d.)
+
+> Obtain the standard error of $log \hat{S}(20)$ for the exponential estimate
+
+We know $\log S(t) = -\lambda t$ under exponential modeling. 
+
+If we assume it is exponential then variance of $\hat{\lambda}$ is $Var(\hat{\lambda}) = \frac{\lambda^2}{D}$.
+
+Combine these and we can calculate the variance:
+$$Var(\log \hat{S}(t)) = Var(-\hat{\lambda} t) = t^2 Var(\hat{\lambda}) = \frac{t^2 \hat{\lambda}^2}{D}$$
+
+Now we plug the values we got in part c in:
+$$Var(\log \hat{S}(20)) = \frac{20^2 \times (0.01655)^2}{7} = \frac{400 \times 0.0002739}{7} \approx 0.01565$$
+
+Take the square root and we get $SE(\log \hat{S}(20)) = \sqrt{0.01565} \approx 0.1251$
+
+
+
+\newpage
+
+
+# Problem 3
+
+> The following data report the survival of 30 late stage liver cancer patients (in weeks) according to three different treatment methods. In Homework #7, you tested for differences among the treatments nonparametrically using the log-rank test and parametrically assuming the survival times were exponential.
+
+## a.)
+
+> Test whether the exponential or Weibull distributions best fit the data.
+
+Use libraries Prof Song uses.
+
+
+```{r}
+library(survival)
+library(survminer)
+
+# Create the dataset
+time <- c(2, 2, 4, 6, 7, 9, 12, 17, 19, 24, # Trt 1
+          1, 1, 3, 4, 6, 6, 8, 9, 10, 12, # Trt 2
+          5, 6, 8, 10, 12, 13, 13, 14, 19, 21) # Trt 3
+
+cens <- c(0, 1, 1, 0, 1, 1, 1, 0, 0, 1, # Trt 1
+            1, 1, 1, 0, 1, 1, 0, 1, 1, 0, # Trt 2
+            0, 1, 1, 1, 0, 1, 1, 0, 1, 1) # Trt 3
+
+trt <- factor(rep(1:3, each = 10))
+surv_obj <- Surv(time, cens)
+
+fit_weibull <- survreg(surv_obj ~ trt, dist = "weibull")
+fit_exponential <- survreg(surv_obj ~ trt, dist = "exponential")
+summary(fit_weibull)
+summary(fit_exponential)
+```
+
+Use simple likelihood ratio test to test if exponentional model (special version of weibull) is better.
+
+```{r}
+L_weibull <- logLik(fit_weibull)
+L_exp <- logLik(fit_exponential)
+LR_stat <- as.numeric(2 * (L_weibull - L_exp))
+pchisq(LR_stat, df = 1, lower.tail = FALSE)
+```
+
+Since the p-value is less than $\alpha = 0.05$, we reject the exponential model in favor of the weibull model. 
+
+## b.)
+
+> Assuming the survival times are Weibull, what are the mean survival lives for each group?
+
+We know that the expected value of Weibull distribution is $E[T] = \lambda \Gamma\left(1 + \frac{1}{k}\right)$ with $k = 1 / \text{scale}$ (from the survreg output) and $\lambda = \exp(\text{intercept} + \beta_i)$.
+
+We get these values from our models above. 
+
+```{r}
+coeffs <- coef(fit_weibull)
+shape_k <- 1 / fit_weibull$scale
+
+# Calculate means for each treatment group
+# Trt 1 (intercept/baseline)
+mean_trt1 <- exp(coeffs[1]) * gamma(1 + 1/shape_k)
+
+# Trt 2
+mean_trt2 <- exp(coeffs[1] + coeffs[2]) * gamma(1 + 1/shape_k)
+
+# Trt 3
+mean_trt3 <- exp(coeffs[1] + coeffs[3]) * gamma(1 + 1/shape_k)
+
+mean_trt1
+mean_trt2
+mean_trt3
+```
+
+Our mean survival times are 14.31066 for treatment 1, 7.413575 for treatment 2, 14.09647 for treatment 3. 
+
+## c.)
+
+> The Cox proportional hazard model was fit giving the following output. The estimates of survival functions for the first treatment group are $\hat{S}(1) = 0.9612$ and  $\hat{S}(2) = 0.9405$. Compute the estimates of the survival functions of the corresponding values for the second and third groups, respectively.
+
+Treatment group 1 is the baseline (intercept) and we assume by the proportional hazard model that the thing that changes is by slope not affected by time, ie:
+$$S(t | x) = [S_0(t)]^{\exp(\beta x)}$$
+
+$\hat{S}_1(t)$ is our estimate for the baseline survival $S_0(t)$,  $\beta_2 = 3.13901$ and $\beta_3 = 1.07694$. 
+
+We can now calculate:
+
+At $t = 1$:
+
+  - Group 2: $\hat{S}_2(1) = [\hat{S}_1(1)]^{HR_2} = (0.9612)^{3.13901} \approx \mathbf{0.8837}$
+  - Group 3: $\hat{S}_3(1) = [\hat{S}_1(1)]^{HR_3} = (0.9612)^{1.07694} \approx \mathbf{0.9583}$
+
+At $t = 2$:
+
+  - Group 2: $\hat{S}_2(2) = [\hat{S}_1(2)]^{HR_2} = (0.9405)^{3.13901} \approx \mathbf{0.8242}$
+  - Group 3: $\hat{S}_3(2) = [\hat{S}_1(2)]^{HR_3} = (0.9405)^{1.07694} \approx \mathbf{0.9360}$
+
+## d.)
+
+> Provide a graphical assessment to diagnose whether a Cox proportional hazard model can be used
+
+Now we plot the log-log survival plot. We plot log of the $\Lambda(t)$ vs log of the time. This is because the assumption is $log (\Lambda(t)) = log(-log S(t))$ is linear. 
+
+```{r}
+# 1. Fit the Kaplan-Meier curves for each treatment group
+km_fit <- survfit(Surv(time, cens) ~ trt)
+
+# 2. Create the log-log plot
+# note: fun = "cloglog" transforms S(t) to log(-log(S(t)))
+plot(km_fit, 
+     fun = "cloglog", 
+     col = c("blue", "red", "darkgreen"), 
+     lty = 1:3,
+     lwd = 2,
+     main = "Log-Log Survival Plot for PH Assumption",
+     xlab = "Log(Time) in Weeks", 
+     ylab = "log(-log(Survival))")
+
+# 3. Add legend
+legend("topleft", 
+       legend = c("Treatment 1", "Treatment 2", "Treatment 3"), 
+       col = c("blue", "red", "darkgreen"), 
+       lty = 1:3, 
+       lwd = 2)
+```
+
+Its hard to say if its all that parallel because the steps are so large but I would say it is roughly decently parallel. The proportional hazard model assumption likely can hold here. 
+
+\newpage
+
+## Problem 4
+
+> Consider the survival model characterized by the following piecewise-constant hazard function. where $\pi_1$ and $\pi_2$ are known constants. Based on right-censored data $(x_i,\delta_i)$, i = 1,...,n derive the MLEs of $\lambda_1$,  $\lambda_2$, and  $\lambda_3$ and their standard errors.
+
+This is our assumption:
+$$\Lambda(t) = \begin{cases} \lambda_1 t & 0 \le t < \pi_1 \\ \lambda_1 \pi_1 + \lambda_2(t - \pi_1) & \pi_1 \le t < \pi_2 \\ \lambda_1 \pi_1 + \lambda_2(\pi_2 - \pi_1) + \lambda_3(t - \pi_2) & t \ge \pi_2 \end{cases}$$
+
+We aren't given scaling or anything like that so we should assume we are dealing with a model more similar to exponential distribution. 
+
+Then the likelihood for one observation $i$ is $L_i = [\lambda(x_i)]^{\delta_i} S(x_i)$. We expand:
+$$L_i = [\lambda(t_i)]^{\delta_i} \exp\left( -\int_0^{x_i} \lambda(u) du \right)$$
+The log likelihood is simply:
+$$\ln L_i = \delta_i \ln \lambda(t_i) - \int_0^{t_i} \lambda(u) du$$
+
+We can further simplify because this is a piecewise constant hazard so we simplify $S(t) = \exp(-\int_0^t \lambda(u) du)$ with the idea that the cumulative hazard $\Lambda(t) = \int_0^t \lambda(u) du$ is the sum of the hazards across the intervals the individual has survived. Ie its piecewise so let $t_{ij}$ be the time spent by individual $i$ in interval $j$, and $d_{ij}$ be an indicator if individual $i$ died in interval $j$. Then 
+$$\int_0^{x_i} \lambda(u) du = \lambda_1 t_{i1} + \lambda_2 t_{i2} + \lambda_3 t_{i3}$$
+
+
+Now we do this over all the individuals to find the log-likelihood:
+$$\ell(\lambda_1, \lambda_2, \lambda_3) = \sum_{i=1}^n \sum_{j=1}^3 (d_{ij} \ln \lambda_j - \lambda_j t_{ij})$$
+
+Let total time at risk in interval $j$: $T_j = \sum_{i=1}^n t_{ij}$ and total events in interval $j$: $D_j = \sum_{i=1}^n d_{ij}$. Importnat to note here that we are counting for time spent inside the interval. If we only know total time alive, we can easily calculate for interval 1: $t_{i1} = \min(t_i, \pi_1)$, for interval 2: $t_{i2} = \max(0, \min(t_i, \pi_2) - \pi_1)$, for interval 3: $t_{i3} = \max(0, t_i - \pi_2)$. 
+
+We simplify further, swap the summation order:
+$$\ell(\lambda_1, \lambda_2, \lambda_3) = \sum_{j=1}^3 \left[ \left( \sum_{i=1}^n d_{ij} \right) \ln \lambda_j - \lambda_j \left( \sum_{i=1}^n x_{ij} \right) \right] = \sum_{j=1}^3 (D_j \ln \lambda_j - \lambda_j T_j)$$
+
+Ok, we have simplified formula. 
+Now, to find the MLE for each $\lambda_j$, we take the partial derivative with respect to $\lambda_j$ and we set it to zero:
+$$\frac{\partial \ell}{\partial \lambda_j} = \frac{D_j}{\lambda_j} - T_j = 0 \implies \hat{\lambda}_j = \frac{D_j}{T_j}$$
+
+This is standard MLE of exponential distribution. 
+
+
+Finally, the standard error. The terms are sums of independent terms of each $\lambda_i$ so they should be independent. We can simply solve for the variance based on Fisher information number:
+
+Second derivative (based on previous calculations):
+$$\frac{\partial^2 \ell}{\partial \lambda_j^2} = -\frac{D_j}{\lambda_j^2}$$
+
+Negative inverse:
+$$\widehat{Var}(\hat{\lambda}_j) = \left( -\frac{\partial^2 \ell}{\partial \lambda_j^2} \bigg|_{\hat{\lambda}_j} \right)^{-1} = \frac{\hat{\lambda}_j^2}{D_j} = \frac{(D_j/T_j)^2}{D_j} = \frac{D_j}{T_j^2}$$
+
+Finally, the standard error is the square root:
+$$SE(\hat{\lambda}_j) = \frac{\sqrt{D_j}}{T_j}$$
+
+

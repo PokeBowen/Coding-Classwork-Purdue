@@ -1,0 +1,164 @@
+---
+title: "STAT 545 HW 8"
+author: "Bowen Zheng"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Problem 1
+
+> (Probit Regression). Consider the probit regression model for n independent observations $\{X_i Y_i\}$ where $Y_i \in \{0,1\}$ , $X_i \in R^p$ and we have $Pr(Y_i = 1) = \Phi(\beta^T X_i)$, for p-dimensional parameter vector , where $\Phi(\cdot)$ denotes the standard normal cdf. Suppose, we decide to put a at prior on $\beta$, i.e. $\pi(\beta )\propto 1$.
+
+## A.
+
+> Write down the posterior $\pi(\beta | X,Y)$ up to a constant of proportionality.
+
+Each observation can either be 0 or 1 (Bernoulli) so the pmf for a single observation with given X and Beta is:
+$$\Pr(Y_i | X_i, \beta) = [\Phi(\beta^T X_i)]^{Y_i} [1 - \Phi(\beta^T X_i)]^{1 - Y_i}$$
+
+We can combine them all together to get the joint likelihood function:
+
+$$L(Y | \beta , X) = \prod_{i=1}^n \Phi(\beta^T X_i)^{Y_i} (1 - \Phi(\beta^T X_i))^{1 - Y_i}$$
+
+We take the non-infromative prior: $\pi(\beta) \propto 1$
+
+Now we can compute the posterior:
+$$\pi(\beta | X, Y) \propto L(\beta, Y | X) \propto L(Y |X, \beta) \cdot \pi(\beta)$$
+
+Which is just:
+$$\pi(\beta | X, Y) \propto \left( \prod_{i=1}^n \Phi(\beta^T X_i)^{Y_i} (1 - \Phi(\beta^T X_i))^{1 - Y_i} \right) \cdot 1 = \prod_{i=1}^n \Phi(\beta^T X_i)^{Y_i} (1 - \Phi(\beta^T X_i))^{1 - Y_i}$$
+
+## B.
+
+> Introduce the latent variable $Z_i = \beta^T X_i + \epsilon_i$ where $\epsilon_i$ are independent standard Gaussian. Show that $\beta$ is conditionally independent of Y given Z and X. In particular, show that $\beta| X,Y,Z \sim Normal((X^T X)^{-1} X^T Z, (X^TX)^{-1})$
+
+Let $Z_i = \beta^T X_i + \epsilon_i$ and $\epsilon_i \sim N(0, 1)$.  
+
+We start with the conditional distribution of beta and Y and find:
+$$\pi(\beta, Y \mid Z, X) = \pi(\beta \mid Z, X) \cdot \pi(Y \mid \beta, Z, X)$$
+
+We know that $$Y_i = \begin{cases} 1 & \text{if } Z_i > 0 \\ 0 & \text{if } Z_i \le 0 \end{cases}$$
+Then, 
+$$L(Y | Z, \beta, X) = \prod_{i=1}^n \Phi(Z_i)^{Y_i} (1 - \Phi(Z_i))^{1 - Y_i}$$
+which is not dependent on the $X$ or $\beta$. Then, $\pi(Y \mid \beta, Z, X) = \pi(Y \mid Z)$. 
+$$\pi(\beta, Y \mid Z, X) = \pi(\beta \mid Z, X) \cdot \pi(Y \mid Z)$$
+
+Because the distribution of $Y$ given $Z$ does not involve $\beta$ and the distribution of $\beta$ does not involve Y, we conclude that $\beta$ and $Y$ are conditionally independent given $Z$ and $X$. 
+
+Then, we solve for the distribution of $\beta$ (remember that $Z=X\beta+\epsilon$ is Normal$(X \beta, I_n)$:
+$$\pi(\beta \mid X, Z) \propto f(Z \mid X, \beta) \pi(\beta) \propto \exp \left( -\frac{1}{2} (Z - X\beta)^T (Z - X\beta) \right) * 1$$
+
+We expand the quadratic part and find:
+$$(Z - X\beta)^T (Z - X\beta) = Z^T Z - 2\beta^T X^T Z + \beta^T X^T X \beta$$
+
+Let $\Sigma^{-1} = X^T X \implies \Sigma = (X^T X)^{-1}$ and then $\Sigma^{-1}\mu = X^T Z \implies \mu = (X^T X)^{-1} X^T Z$. We find:
+$$\pi(\beta \mid X, Z) \propto \exp \left( -\frac{1}{2} [\beta^T (X^T X) \beta - 2\beta^T (X^T Z)] \right) \propto \exp \left( -\frac{1}{2} (\beta - \mu)^T \Sigma^{-1} (\beta - \mu) \right)$$
+
+Which tells us that:
+$$\beta \mid X, Y, Z \sim Normal((X^T X)^{-1} X^T Z, (X^T X)^{-1})$$
+
+## C.
+
+> Show that
+
+$$ 
+Z_{i}|X_{i}, Y_{i}, \boldsymbol{\beta} \sim 
+\left\{ 
+\begin{array}{ll} 
+\mathrm{TN}_{-}(\boldsymbol{\beta}^{\mathrm{T}} X_{i}, 1, 0) & \text{if} \quad Y_{i} = 0 \\ 
+\mathrm{TN}_{+}(\boldsymbol{\beta}^{\mathrm{T}} X_{i}, 1, 0) & \text{if} \quad Y_{i} = 1 
+\end{array} 
+\right.
+$$
+> where $TN_{-}(\mu, sigma^2, c)$ denotes a normal random variable with mean $\mu$, variance $\sigma^2$, truncated from the right at c and similarly $TN_{+}(\mu, sigma^2, c)$ denotes a normal random variable with mean $\mu$, variance $\sigma^2$, truncated from the left at c.
+
+Using Bayes equation, we know:
+$$f(z_i \mid X_i, Y_i, \beta) \propto f(Y_i \mid z_i, X_i, \beta) f(z_i \mid X_i, \beta)$$
+
+We are given from the previous section that $Z_i = \beta^T X_i + \epsilon_i$ with $\epsilon_i \sim N(0, 1)$, so $Z_i \mid X_i, \beta \sim N(\beta^T X_i, 1)$. 
+
+Next, we know that $f(Y_i \mid z_i, X_i, \beta)=f(Y_i \mid z_i)$, so Y is determined by Z. Then, $f(Y_i \mid z_i) = \mathbb{I}(z_i > 0) \text{ if } Y_i = 1, \quad \text{and} \quad \mathbb{I}(z_i \le 0) \text{ if } Y_i = 0$.
+
+Ok, now lets look at the cases like in the problem statement.
+
+When $Y_i = 1$, $f(z_i \mid X_i, Y_i=1, \beta) \propto f(z_i \mid X_i, \beta) \cdot \mathbb{I}(z_i > 0)$, which is just the regular normal density truncated on the left at $c=0$. 
+
+When $Y_i = 0$, $f(z_i \mid X_i, Y_i=0, \beta) \propto f(z_i \mid X_i, \beta) \cdot \mathbb{I}(z_i \le 0)$, which is just the regular normal density truncated on the right at $c=0$. 
+
+We combine the two cases and we have the identity as requested. 
+
+## D.
+
+> Take the true $\beta = (-3,0,3,-2,4)^T$. Generate 500 inpendent $X_i = Normal(0, I_5)$ and simulate $Y_i$ with probability of success $\phi(X_i^T \beta)$. Describe the steps in a data augmentation scheme to generate samples from $\pi(\beta |X, Y)$. Implement the scheme in R. Run the data augmentation scheme for 10,000 iterations with 5,000 burn-in steps. Plot a histogram of the posterior samples for each component of $\beta$.
+
+We want to create a Gibbs sampler. We are given X and Y. We need to sample Beta and Z. The steps are:
+
+1. Start with an initial guess $\beta^{(0)}$.
+2. Sample Latent Variables ($Z \mid \beta, X, Y$): For each $i = 1, \dots, n$, sample:
+    1. If $Y_i = 1$, $Z_i \sim \text{TN}_+(X_i^T \beta, 1, 0)$ (Normal truncated below at 0).
+    2. If $Y_i = 0$, $Z_i \sim \text{TN}_-(X_i^T \beta, 1, 0)$ (Normal truncated above at 0).
+3. Sample Parameters ($\beta \mid Z, X$): Treating $Z$ as the response in a linear regression:
+    - $\beta \sim \text{Normal}\left((X^T X)^{-1} X^T Z, (X^T X)^{-1}\right)$.
+4. Repeat: Iterate steps 2 and 3 for the desired number of samples that we need (10,000 in our case).
+
+We will be using packages that can give us a truncated normal instead of doing extra work of creating our own sampling scheme for truncated normal. 
+
+```{r}
+library(truncnorm)
+
+# Setup our variables and generate our starting stuff
+set.seed(42)
+n <- 500
+p <- 5
+beta_true <- c(-3, 0, 3, -2, 4)
+
+X <- matrix(rnorm(n * p), n, p)
+prob <- pnorm(X %*% beta_true)
+Y <- rbinom(n, 1, prob)
+
+# Gibbs sampler settings
+n_iter <- 10000
+burn_in <- 5000
+beta_samples <- matrix(0, n_iter, p)
+
+# Precompute (X'X)^-1 and its Cholesky decomposition for later use
+XtX_inv <- solve(t(X) %*% X)
+chol_inv <- chol(XtX_inv)
+
+# Running the steps detailed earlier
+# Step 1: Initial value for beta is just a bunch of 0
+current_beta <- rep(0, p)
+
+for (s in 1:n_iter) {
+  # Step 2: Sample Z_i | beta, X, Y
+  mu_z <- X %*% current_beta
+  Z <- ifelse(Y == 1, 
+              rtruncnorm(n, a = 0, b = Inf, mean = mu_z, sd = 1),
+              rtruncnorm(n, a = -Inf, b = 0, mean = mu_z, sd = 1))
+  
+  # Step 3: Sample beta | Z, X
+  # Mean of beta posterior from question part B: (X'X)^-1 X'Z
+  mean_beta <- XtX_inv %*% t(X) %*% Z
+  # Standard sample from Multivariate Normal using Cholesky decomp
+  current_beta <- mean_beta + t(chol_inv) %*% rnorm(p)
+  
+  beta_samples[s, ] <- current_beta
+}
+
+# Remove burn-in
+post_samples <- beta_samples[(burn_in + 1):n_iter, ]
+
+# Visualization plot
+par(mfrow = c(2, 3))
+for (j in 1:p) {
+  hist(post_samples[, j], main = paste("Beta", j-1), 
+       xlab = "Value", col = "skyblue", breaks = 30)
+  abline(v = beta_true[j], col = "red", lwd = 2)
+}
+```
+
+Seems like the sampling was not too bad compared to true $\beta$ values. 
