@@ -170,24 +170,177 @@ We interpret the model parameters by looking at the exp(coef) aka the hazard rat
 
 > Visualize the data and comment on what you find.
 
+Basic plot looking at the suppliers and waste
+```{r}
+library(faraway)
+library(ggplot2)
 
+data(denim)
+ggplot(denim, aes(x = supplier, y = waste)) +
+  geom_boxplot(fill = "lightblue") +
+  geom_jitter(width = 0.1) +
+  labs(title = "Waste Amount by Supplier", x = "Supplier", y = "Waste")
+```
+
+The variance between the suppliers definitely seems a bit different. The boxes are different heights suggesting some suppliers have more variation than others. Some also have huge outliers. 
+
+## b.)
+
+> Fit the linear mixed model and check assumptions. Can we trust the inference results? Explain your answer.
+
+We use nlme and lme4 packages that Prof Song uses:
 
 ```{r}
-library(survival)
-library(survminer)
+library(lme4)
+mix_model <- lmer(waste ~ 1 + (1|supplier), data = denim)
+summary(mix_model)
+
+plot(mix_model) # Pearson Residuals vs Fitted
+qqnorm(residuals(mix_model)); qqline(residuals(mix_model)) # Normality of errors
+qqnorm(ranef(mix_model)$supplier[[1]]); qqline(ranef(mix_model)$supplier[[1]]) # Normality of random effects of supplier
 ```
 
+We are using some diagnostic plots to understand whether the linear mixed model fits. The Pearson residuals do seem generally distributed around 0 line, with only a little bit of pattern. We are assuming linear models with normal error. This means that we want it to match QQ plot pretty closely. We see that this is generally the case for both error and for the randomness of supplier. However, it is a bit harder to diagnose the randomness of supplier due to the limited sample. 
+
+
+## c.)
+
+> Stats the null and alternative hypotheses of the ANOVA F test, the test statistic, degrees of freedom, and its P-value. What do you conclude?
+
+For the one-way random effects model, our null hypothesis states that there is no variation between the suppliers, ie $H_0$: $\sigma^2_\alpha = 0$. The alternative hypothesis would state that there is some variation, $H_a$: $\sigma^2_\alpha > 0$. 
+
+The test statistic is F value. 
 
 ```{r}
-
+anova(lm(waste ~ supplier, data = denim))
 ```
 
-## Including Plots
+Since p > 0.05, we do not reject $H_0$ and conclude that suppliers do not contribute significantly to total variance in waste. 
 
-You can also embed plots, for example:
+## d.)
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+> Provide a 95% confidence interval for
+
+```{r}
+confint(mix_model, method = "profile")
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+1.) We are 95% confident that the true mean of waste is in the interval of [4.98, 8.96]. 
+
+2.) We are 95% confident that the true variance of the error .sig01 ($\sigma_{\alpha}$) between suppliers is [0, 4.21]. We are 95% confident that the true residual standard deviation .sigma ($\sigma$) is [8.59, 11.42].
+
+3.)  $\rho = \frac{\sigma^2_\alpha}{\sigma^2_\alpha + \sigma^2}$
+
+We can calculate the confidence interval because we assume MSTrt and MSE are independent chi-squared random variables. We get all we need from our anova table:
+```{r}
+anova_table <- anova(lm(waste ~ supplier, data = denim))
+
+# Extract values
+df1 <- anova_table$Df[1]           # Degrees of freedom for supplier
+df2 <- anova_table$Df[2]           # Degrees of freedom for residuals
+MSTrt <- anova_table$`Mean Sq`[1]  # MSTrt
+MSE <- anova_table$`Mean Sq`[2] 
+
+# Get 'n' (observations per group)
+# Since denim is balanced, we can just take the total N / number of groups
+n <- nrow(denim) / (df1 + 1)
+
+alpha <- 0.05
+f_low <- qf(1 - alpha/2, df1, df2)
+f_high <- qf(alpha/2, df1, df2)
+
+# Calculate L and U
+L0 <- (1/n) * (MSTrt / (MSE * f_low) - 1)
+U0 <- (1/n) * (MSTrt / (MSE * f_high) - 1)
+
+# Only care about positive values
+L <- max(0, L0)
+U <- max(0, U0)
+
+L / (L + 1)
+U / (U + 1)
+```
+We are 95% confident that the true intercorrelated correlation value lies between [0,0.313].
+
+## e.)
+
+> Compare the fitted values $\hat{Y}_{ij}$ in the linear mixed model with the fitted values that would have been obtained if Supplier was viewed as fixed, and explain the reason for the difference in the estimates (if any).
+
+```{r}
+# Random effects predictions (mixed model)
+ranef_fits <- predict(mix_model)
+# Fixed effects predictions (regular lm)
+fixef_fits <- predict(lm(waste ~ supplier, data = denim))
+
+comp_data <- data.frame(
+  supplier = levels(denim$supplier),
+  Fixed = as.numeric(fixef_fits),
+  Mixed = as.numeric(ranef_fits)
+)
+
+library(tidyr)
+plot_df <- pivot_longer(comp_data, cols = c("Fixed", "Mixed"), 
+                        names_to = "Model", values_to = "Predicted")
+
+ggplot(plot_df, aes(x = supplier, y = Predicted, color = Model, shape = Model)) +
+  geom_point(size = 4) +
+  geom_line(aes(group = supplier), color = "black", linetype = "dotted") +
+  geom_hline(yintercept = fixef(mix_model), linetype = "dashed", alpha = 0.5) +
+  labs(title = "Comparison of Predicted Waste by Supplier",
+       subtitle = "Dotted lines show the 'shrinkage' from Fixed to Mixed estimates",
+       x = "Supplier",
+       y = "Predicted Waste Amount") +
+  theme_bw()
+```
+
+Pretty cool that we can see that the mixed model has predicted values much closer to the global mean. This is probably because the mixed model sees the supplier as extra variation / error and controls for that while the fixed model does not. 
+
+
+\newpage 
+
+# Problem 4
+
+> A school superintendent is concerned about the development of technology skills for research in high school. Since there are four high schools in his district, all of which go about this instruction differently, he decided to assess if there were any differences across schools. He first compiled a long list of “tech skills” and randomly selected four to be used in his study. He then randomly selected 24 students from each school and assigned each to one of the four tasks so that there were six students per task per school. Each student then performed the skill and was scored using a 0-100 numeric scale.
+
+## a.)
+
+> If a two-way ANOVA is to be used for the analysis, should it be treated as a fixed effects, random effects, or mixed effects model? State the model you would use and its assumptions.
+
+This is a mixed effects model. School is the fixed effect. The skill that is being tested is the random effect because they are chosen randomly out of a long list. 
+
+My model is:
+$$Y_{ijk} = \mu + \alpha_i + \beta_j + (\alpha\beta)_{ij} + \epsilon_{ijk}$$
+
+$\mu$ is the grand mean, $\alpha_i$ is the fixed effect of the $i$-th School, $\beta_j$ is the random effect of the $j$-th Skill with $\beta_j \sim N(0, \sigma_\beta^2)$, $(\alpha\beta)_{ij}$ is the random interaction effect with $(\alpha\beta)_{ij} \sim N(0, \sigma_{\alpha\beta}^2)$, $\epsilon_{ijk}$ is the random error with $\epsilon_{ijk} \sim N(0, \sigma^2)$.
+
+Since it is a linear mixed model, we assume independence between observation, that the error terms and random effects are normally distributed, and finally that the variance is constant across groups. 
+
+
+## b.)
+
+> Complete the following ANOVA table and determine which effects are significant at the $\alpha = .05$ level. State your conclusions, making sure to estimate all variances and describing any additional mean comparisons you’d like to perform.
+
+| Source | DF | SS | MS | F-statistic |
+| :--- | :--- | :--- | :--- | :--- |
+| School | 3 | 222.0 | 74 | 13.15 |
+| Skill  | 3 | 96.0 | 32 | 5.68 |
+| School × Skill | 9 | 135.0 | 15 | 2.66 |
+| Error | 80 | 450.0 | 5.625 |  - | 
+| Total | 95 | 903.0 | - |  - | 
+
+We compare these F statistics against their F values. School, skill, school x skill are all significant. Our variance estimates are $\hat{\sigma}^2 = MS_E = \mathbf{5.625}$, $\hat{\sigma}_{\alpha\beta}^2 = \frac{MS_{AB} - MS_E}{n} = \frac{15 - 5.625}{6} = \mathbf{1.5625}$, $\hat{\sigma}_\beta^2 = \frac{MS_B - MS_E}{an} = \frac{32 - 5.625}{24} \approx \mathbf{1.10}$. 
+
+Since we know school effect is significant, we can perform Tukey's tests to compare the specific schools with one another. 
+
+## c.)
+
+> If the grand skill level of the high schools (average over the four schools) is of interest, describe how one would construct a 95% confidence interval.
+
+Our point estimate for the grand skill is the mean of the whole sample set. We then compute standard error by estimating the variance (assuming independent normal errors) $\text{Var}(\bar{Y}_{\dots}) = \frac{\sigma_\beta^2}{b} + \frac{\sigma_{\alpha\beta}^2}{ab} + \frac{\sigma^2}{abn}$ where $a=4$, $b=4$, and $n=6$. We would plug in our estimated variances. We take the square root to get SE. We have a t distribution, where we have significant error from skill. We could use its degrees of freedom, so t($\alpha/2$, df=3). 
+
+Finally
+
+$$\bar{Y}_{\dots} \pm t_{\alpha/2, df=3} \cdot SE$$
+
+
+
